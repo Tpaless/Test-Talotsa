@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://assets/sprites/enemy_striker.svg" type="Texture2D" id="1_texture"]
+
+[node name="Striker" type="Sprite2D"]
+texture = ExtResource("1_texture")
