@@ -134,6 +134,7 @@ func _run() -> void:
 	await process_frame
 	var scaled_enemy: Dictionary = game.enemies[-1]
 	var normal_enemy_radii := [17.0, 20.0, 27.0]
+	assert(is_equal_approx(game.ENEMY_SIZE_MULTIPLIER, 2.55))
 	assert(is_equal_approx(float(scaled_enemy.radius), normal_enemy_radii[int(scaled_enemy.kind)] * game.ENEMY_SIZE_MULTIPLIER))
 	var background = game.get_node("ParallaxBackground")
 	assert(not game.selecting_character)
@@ -256,8 +257,10 @@ func _run() -> void:
 	assert(game.enemy_attack_damage(2) == 25)
 	assert(game.enemy_attack_damage(game.BOSS_KIND) == 20)
 	assert(is_equal_approx(game.potion_drop_chance(), 0.15))
+	assert(is_equal_approx(game.POTION_SIZE_MULTIPLIER, 2.2))
+	assert(is_equal_approx(game.POTION_VISUAL_SIZE, 72.6))
 	game.player_health = 50
-	game.pickups.append({"pos": game.player_pos, "phase": 0.0})
+	game.pickups.append({"pos": game.player_pos + Vector2(40.0, 0.0), "phase": 0.0})
 	game.resolve_collisions()
 	assert(game.player_health == 75)
 	assert(ProjectSettings.get_setting("display/window/size/viewport_width") == 540)

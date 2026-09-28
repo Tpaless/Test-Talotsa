@@ -3,7 +3,10 @@ extends Node2D
 const GAME_SIZE := Vector2(540.0, 960.0)
 const PLAYER_RADIUS := 18.0
 const BOSS_KIND := 3
-const ENEMY_SIZE_MULTIPLIER := 1.5
+const ENEMY_SIZE_MULTIPLIER := 2.55 # previous 150% size, enlarged by another 70%
+const POTION_SIZE_MULTIPLIER := 2.2 # enlarged by 120%
+const POTION_PICKUP_RADIUS := 14.0 * POTION_SIZE_MULTIPLIER
+const POTION_VISUAL_SIZE := 33.0 * POTION_SIZE_MULTIPLIER
 # จำนวนด่านและคะแนนที่ต้องถึงเพื่อเรียกบอส: ด่าน 1-6 ใช้ 1-6 เท่าของค่านี้
 const FINAL_LEVEL := 6
 const LEVEL_SCORE_STEP := 5000
@@ -2389,7 +2392,7 @@ func update_pickups(delta: float) -> void:
 	for i in range(pickups.size() - 1, -1, -1):
 		pickups[i].pos.y += 105.0 * delta
 		pickups[i].phase += delta * 4.0
-		if pickups[i].pos.y > GAME_SIZE.y + 20.0:
+		if pickups[i].pos.y > GAME_SIZE.y + POTION_PICKUP_RADIUS + 5.0:
 			pickups.remove_at(i)
 
 
@@ -2445,7 +2448,7 @@ func resolve_collisions() -> void:
 				break
 
 	for i in range(pickups.size() - 1, -1, -1):
-		if pickups[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + 14.0, 2.0):
+		if pickups[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + POTION_PICKUP_RADIUS, 2.0):
 			player_health = mini(max_player_health, player_health + ceili(max_player_health * POTION_HEAL_RATIO))
 			score += 75
 			refresh_stage_level()
@@ -2888,12 +2891,12 @@ func draw_boss_hazard(hazard: Dictionary) -> void:
 func draw_pickup(pickup: Dictionary) -> void:
 	var pos: Vector2 = pickup.pos
 	var pulse := 1.0 + sin(pickup.phase) * 0.12
-	if draw_visual("health_pickup", pos, Vector2.ONE * 33.0 * pulse):
+	if draw_visual("health_pickup", pos, Vector2.ONE * POTION_VISUAL_SIZE * pulse):
 		return
-	draw_circle(pos, 18.0 * pulse, Color(0.2, 1.0, 0.5, 0.12))
-	draw_circle(pos, 12.0, Color("22c96b"))
-	draw_rect(Rect2(pos - Vector2(2.5, 8.0), Vector2(5.0, 16.0)), Color.WHITE)
-	draw_rect(Rect2(pos - Vector2(8.0, 2.5), Vector2(16.0, 5.0)), Color.WHITE)
+	draw_circle(pos, 18.0 * POTION_SIZE_MULTIPLIER * pulse, Color(0.2, 1.0, 0.5, 0.12))
+	draw_circle(pos, 12.0 * POTION_SIZE_MULTIPLIER, Color("22c96b"))
+	draw_rect(Rect2(pos - Vector2(2.5, 8.0) * POTION_SIZE_MULTIPLIER, Vector2(5.0, 16.0) * POTION_SIZE_MULTIPLIER), Color.WHITE)
+	draw_rect(Rect2(pos - Vector2(8.0, 2.5) * POTION_SIZE_MULTIPLIER, Vector2(16.0, 5.0) * POTION_SIZE_MULTIPLIER), Color.WHITE)
 
 
 func draw_visual(key: String, center: Vector2, size: Vector2) -> bool:

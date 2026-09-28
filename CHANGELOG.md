@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Enlarged non-boss enemies by another 70% from their previous size and enlarged health potions by 120%, including their visual and collection radius.
 - Enlarged every non-boss enemy (including Plastic Man minions) by 50% while leaving boss sizes unchanged.
 - Moved the white chest menu icon from Score Board to Quest and changed Asset Menu icon modulation to white.
 - Added a confirmed Clear User Data action in Settings to remove local progress, unlocks, scores, coins, quests, and saved audio levels.
