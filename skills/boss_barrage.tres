@@ -1,11 +1,9 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://c220mu3wtb845"]
 
-[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bvyni80k5cu2m" path="res://scripts/skill_definition.gd" id="1_skill"]
 
 [resource]
 script = ExtResource("1_skill")
-display_name = "Barrage"
-description = "บอสระดับ 4: เกราะหนา กระสุนเสริม 3 นัด และยิงถี่ขึ้น"
-fire_interval_multiplier = 0.78
+display_name = "Lens Tentacles"
+description = "หมึกเลนส์: เงาเตือน 1.3 วินาทีก่อนหนวดทุบ และสร้างเกราะหนวดใน Phase 3"
 max_health_multiplier = 1.5
-extra_projectiles = 3

@@ -22,5 +22,7 @@ const TEXTURE_PATHS := {
 	"player_giant": "res://assets/sprites/bullet_giant.svg",
 	"enemy_normal": "res://assets/sprites/bullet_enemy.svg",
 	"enemy_special": "res://assets/sprites/bullet_special.svg",
-	"health_pickup": "res://assets/sprites/pickup_health.svg",
+	"enemy_beyblade": "res://assets/sprites/beyblade.png",
+	"senahoy_special": "res://assets/sprites/SENAHOY_Bullet.png",
+	"health_pickup": "res://assets/sprites/pickup_health.png",
 }

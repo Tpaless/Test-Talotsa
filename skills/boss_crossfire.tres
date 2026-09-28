@@ -1,10 +1,9 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://dcbf66pdt2cia"]
 
-[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bvyni80k5cu2m" path="res://scripts/skill_definition.gd" id="1_skill"]
 
 [resource]
 script = ExtResource("1_skill")
-display_name = "Crossfire"
-description = "บอสระดับ 2: เกราะหนาและเพิ่มกระสุนเสริม 2 นัด"
+display_name = "Khram Dash"
+description = "คราม: พุ่งชน 30% ทุกครั้งที่เสีย HP ครบ 10% และพุ่งต่อเนื่อง 5 วินาทีเมื่อ HP ต่ำกว่า 10%"
 max_health_multiplier = 1.5
-extra_projectiles = 2

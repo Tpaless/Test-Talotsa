@@ -7,10 +7,11 @@ const SPREAD_SHOT = preload("res://skills/spread_shot.tres")
 const FORTIFY = preload("res://skills/fortify.tres")
 const BOSS_BULWARK = preload("res://skills/boss_bulwark.tres")
 const BOSS_CROSSFIRE = preload("res://skills/boss_crossfire.tres")
+const BOSS_KUNG = preload("res://skills/boss_kung.tres")
 const BOSS_PURSUIT = preload("res://skills/boss_pursuit.tres")
 const BOSS_BARRAGE = preload("res://skills/boss_barrage.tres")
 const BOSS_OVERDRIVE = preload("res://skills/boss_overdrive.tres")
-const BOSS_RAZOR_GUARDIAN = preload("res://skills/boss_razor_guardian.tres")
+const BOSS_RED_GUY = preload("res://skills/boss_red_guy.tres")
 
 # ตั้งสกิลตรงนี้ได้เลย ไม่ต้องเปิด Inspector
 # ด้านซ้ายคือที่อยู่ไฟล์ Scene ของตัวละคร (player.tscn คือ Johny)
@@ -29,15 +30,16 @@ const SKILL_LOADOUTS := {
 	"res://characters/enemies/boss.tscn": [], # บอสใช้ BOSS_SKILLS_BY_LEVEL ด้านล่าง
 }
 
-# บอสทั้ง 5 ด่านใช้สกิลคนละไฟล์ จึงปรับแยกกันได้โดยไม่ต้องแก้ Inspector
+# บอสเนื้อเรื่อง 6 ตัวและบอสพิเศษใช้โมเดลและสกิลคนละไฟล์
 # เปลี่ยนสกิล: แก้ชื่อภายใน [] ของด่านนั้น; เพิ่มด่านใหม่: เพิ่มเลขด่านและไฟล์สกิล
 const BOSS_SKILLS_BY_LEVEL := {
 	1: [BOSS_BULWARK],
 	2: [BOSS_CROSSFIRE],
-	3: [BOSS_PURSUIT],
-	4: [BOSS_BARRAGE],
-	5: [BOSS_OVERDRIVE],
-	6: [BOSS_RAZOR_GUARDIAN],
+	3: [BOSS_KUNG],
+	4: [BOSS_PURSUIT],
+	5: [BOSS_BARRAGE],
+	6: [BOSS_OVERDRIVE],
+	7: [BOSS_RED_GUY],
 }
 
 # สำหรับสกิลที่เพิ่มระหว่างรันเกมด้วยโค้ด เช่น character.skills.append(FORTIFY)

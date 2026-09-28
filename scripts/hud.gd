@@ -21,6 +21,9 @@ var story_font: Font
 var ship_stat_lines: Array = []
 var ship_textures: Array[Texture2D] = []
 var shopkeeper_texture: Texture2D
+var coin_texture: Texture2D
+var chest_texture: Texture2D
+var settings_texture: Texture2D
 
 
 func _ready() -> void:
@@ -37,6 +40,9 @@ func _ready() -> void:
 	var thai_story_font := load("res://assets/fonts/NotoSansThai.ttf") as Font
 	if thai_story_font != null:
 		story_font = thai_story_font
+	coin_texture = load("res://assets/assest_For_Menu/coin.svg") as Texture2D
+	chest_texture = load("res://assets/assest_For_Menu/chest.svg") as Texture2D
+	settings_texture = load("res://assets/assest_For_Menu/settings.svg") as Texture2D
 	# อ่านค่ายาน/ภาพจาก Scene จริง การเปลี่ยน Texture ใน Scene จึงสะท้อนในเมนูทันที
 	for i in range(game.PLAYER_SCENES.size()):
 		var ship: Dictionary = game.PLAYER_CONFIG.get_ship(i)
@@ -69,13 +75,14 @@ func _draw() -> void:
 			"stage": draw_stage_select()
 			"scoreboard": draw_scoreboard()
 			"collection": draw_collection_select()
+			"settings": draw_settings()
 			_: draw_home_menu()
 		return
 	draw_hud()
 	if game.flash_timer > 0.0:
 		draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(1.0, 0.2, 0.28, game.flash_timer * 2.2))
 	if game.paused:
-		draw_overlay("PAUSED", "Tap PAUSE or press P to continue")
+		draw_pause_menu()
 	elif game.game_over:
 		draw_summary()
 
@@ -89,20 +96,35 @@ func draw_home_menu() -> void:
 	var bob: float = sin(game.menu_animation_time * 2.2) * 6.0
 
 	draw_menu_gradient_text(title_font, Vector2(24.0, 58.0), game.get_ship_display_name(selected), HORIZONTAL_ALIGNMENT_CENTER, 492.0, 34)
-	draw_coin(Vector2(214.0, 102.0), 22.0)
-	draw_menu_gradient_text(title_font, Vector2(244.0, 112.0), ": %d" % game.sea_tokens, HORIZONTAL_ALIGNMENT_LEFT, 180.0, 24)
+	draw_coin(Vector2(214.0, 101.0), 20.0)
+	draw_menu_gradient_text(title_font, Vector2(242.0, 110.0), ": %d" % game.sea_tokens, HORIZONTAL_ALIGNMENT_LEFT, 180.0, 23)
+	var nightmare_unlocked: bool = game.is_nightmare_unlocked()
+	var difficulty_labels := ["NORMAL", "NIGHTMARE X2", "NIGHTMARE X3"]
+	for difficulty_index in range(game.DIFFICULTY_BUTTONS.size()):
+		var difficulty_rect: Rect2 = game.DIFFICULTY_BUTTONS[difficulty_index]
+		var available := difficulty_index == 0 or nightmare_unlocked
+		var selected_difficulty: bool = game.difficulty_multiplier == difficulty_index + 1
+		draw_rounded_panel(difficulty_rect, Color("087b91") if selected_difficulty else Color("07304f"), Color("fff09a") if selected_difficulty else Color("4a8295"), 10, 3 if selected_difficulty else 2)
+		draw_string(title_font, difficulty_rect.position + Vector2(0.0, 25.0), difficulty_labels[difficulty_index] if available else "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, difficulty_rect.size.x, 11, Color.WHITE if available else Color("718995"))
+	draw_rounded_panel(game.SETTINGS_BUTTON, Color("07304f"), Color("7fffff"), 15, 2)
+	if settings_texture != null:
+		draw_texture_rect(settings_texture, game.SETTINGS_BUTTON.grow(-10.0), false, Color("d8ffff"))
+	if game.admin_test_armed or game.admin_test_active:
+		draw_rounded_panel(Rect2(105.0, 180.0, 330.0, 34.0), Color("4f174f"), Color("ff8df0"), 10, 2)
+		var admin_label := "[AdminTest] PRESS START" if game.admin_test_armed else "[AdminTest] ALL UNLOCKED"
+		draw_string(title_font, Vector2(105.0, 203.0), admin_label, HORIZONTAL_ALIGNMENT_CENTER, 330.0, 13, Color("fff4ff"))
 
 	if ship_textures[previous] != null:
-		draw_texture_rect(ship_textures[previous], Rect2(-35.0, 288.0, 130.0, 130.0), false, Color(1.0, 1.0, 1.0, 0.34) if game.is_ship_unlocked(previous) else Color(0.18, 0.28, 0.34, 0.48))
+		draw_texture_rect(ship_textures[previous], Rect2(-18.0, 270.0, 104.0, 104.0), false, Color(1.0, 1.0, 1.0, 0.34) if game.is_ship_unlocked(previous) else Color(0.18, 0.28, 0.34, 0.48))
 	if ship_textures[following] != null:
-		draw_texture_rect(ship_textures[following], Rect2(445.0, 288.0, 130.0, 130.0), false, Color(1.0, 1.0, 1.0, 0.34) if game.is_ship_unlocked(following) else Color(0.18, 0.28, 0.34, 0.48))
-	var hero_center := Vector2(270.0, 322.0 + bob)
-	draw_circle(hero_center, 151.0, Color(0.08, 0.92, 0.96, 0.18))
-	draw_circle(hero_center, 139.0, Color(0.20, 0.92, 0.95, 0.16))
-	draw_arc(hero_center, 151.0, 0.0, TAU, 80, Color("79fbff"), 5.0)
-	draw_arc(hero_center, 141.0, 0.0, TAU, 80, Color(0.18, 0.52, 0.82, 0.95), 3.0)
+		draw_texture_rect(ship_textures[following], Rect2(454.0, 270.0, 104.0, 104.0), false, Color(1.0, 1.0, 1.0, 0.34) if game.is_ship_unlocked(following) else Color(0.18, 0.28, 0.34, 0.48))
+	var hero_center := Vector2(270.0, 310.0 + bob)
+	draw_circle(hero_center, 120.0, Color(0.08, 0.92, 0.96, 0.18))
+	draw_circle(hero_center, 110.0, Color(0.20, 0.92, 0.95, 0.16))
+	draw_arc(hero_center, 120.0, 0.0, TAU, 80, Color("79fbff"), 5.0)
+	draw_arc(hero_center, 111.0, 0.0, TAU, 80, Color(0.18, 0.52, 0.82, 0.95), 3.0)
 	if ship_textures[selected] != null:
-		var selected_size := Vector2.ONE * (214.0 - slide_ratio * 22.0)
+		var selected_size := Vector2.ONE * (168.0 - slide_ratio * 18.0)
 		var selected_center := hero_center + Vector2(game.carousel_slide_offset, 0.0)
 		var ship_color := Color(1.0, 1.0, 1.0, 1.0 - slide_ratio * 0.25) if unlocked else Color(0.16, 0.24, 0.28, 0.68)
 		draw_texture_rect(ship_textures[selected], Rect2(selected_center - selected_size * 0.5, selected_size), false, ship_color)
@@ -130,10 +152,11 @@ func draw_home_menu() -> void:
 	var unlock_detail: String = str(ship.role) if unlocked else str(game.get_selected_ship_purchase_status())
 	draw_string(body_font, Vector2(78.0, 696.0), unlock_detail, HORIZONTAL_ALIGNMENT_CENTER, 384.0, 11, Color("d9ffff") if unlocked else Color("fff07a"))
 
-	draw_design_button(game.HOME_SCOREBOARD_BUTTON, "SCORE BOARD", "ENDLESS MODE", false, true)
+	draw_design_button(game.HOME_SCOREBOARD_BUTTON, "SCORE BOARD", "ENDLESS NIGHTMARE X%d" % game.difficulty_multiplier if game.difficulty_multiplier > 1 else "ENDLESS MODE", false, true, chest_texture)
 	draw_design_button(game.HOME_COLLECTION_BUTTON, "QUEST", "%d / %d ITEMS" % [game.item_collection.size(), game.FINAL_LEVEL], false, true)
 	var razor_trial: bool = game.is_razor_special_stage_available()
-	draw_design_button(game.LAUNCH_BUTTON, "TRIAL" if razor_trial else "START", "UNLOCK RAZOR" if razor_trial else "CHOOSE STAGE", true, unlocked or razor_trial)
+	var launch_detail := "UNLOCK RAZOR" if razor_trial else ("6 STAGES • ONE RUN" if game.difficulty_multiplier > 1 else "CHOOSE STAGE")
+	draw_design_button(game.LAUNCH_BUTTON, "TRIAL" if razor_trial else "START", launch_detail, true, unlocked or razor_trial)
 	draw_string(body_font, Vector2(18.0, 936.0), "SWIPE OR USE ARROWS   •   BEST %06d" % game.best_score, HORIZONTAL_ALIGNMENT_CENTER, 504.0, 12, Color("c8fbff"))
 	if game.purchase_overlay_visible:
 		draw_purchase_confirmation()
@@ -187,15 +210,23 @@ func draw_menu_gradient_text(font: Font, position: Vector2, text: String, alignm
 	draw_string_outline(font, position, text, alignment, width, font_size, inner_size, inner_stroke)
 
 	# Gradient เฟดสั้น: ฟ้าอ่อนเป็นฐาน และขาวอมฟ้าเหลื่อมขึ้นด้านบนให้เห็นสองระดับชัดเจน
-	draw_string(font, position + Vector2(0.0, 2.0), text, alignment, width, font_size, bottom_color)
-	draw_string(font, position + Vector2(0.0, -1.0), text, alignment, width, font_size, Color(top_color, 0.92))
+	# Keep both gradient layers nearly aligned so the glyph silhouette stays crisp.
+	draw_string(font, position, text, alignment, width, font_size, bottom_color)
+	draw_string(font, position + Vector2(0.0, -1.0), text, alignment, width, font_size, Color(top_color, 0.86))
+
+
+func draw_readable_text(font: Font, position: Vector2, text: String, alignment: HorizontalAlignment, width: float, font_size: int, color: Color, outline_size: int = 2) -> void:
+	draw_string_outline(font, position + Vector2(2.0, 3.0), text, alignment, width, font_size, outline_size + 1, Color(0.0, 0.02, 0.07, 0.72))
+	draw_string_outline(font, position, text, alignment, width, font_size, outline_size, Color("031426"))
+	draw_string(font, position, text, alignment, width, font_size, color)
 
 
 func draw_coin(center: Vector2, radius: float) -> void:
-	draw_circle(center + Vector2(0.0, 3.0), radius + 2.0, Color("9c5400"))
+	if coin_texture != null:
+		draw_texture_rect(coin_texture, Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0), false, Color("ffd53d"))
+		return
 	draw_circle(center, radius, Color("ffbd18"))
 	draw_arc(center, radius - 3.0, 0.0, TAU, 32, Color("fff075"), 3.0)
-	draw_string(title_font, Vector2(center.x - radius, center.y + 8.0), "$", HORIZONTAL_ALIGNMENT_CENTER, radius * 2.0, 20, Color.WHITE)
 
 
 func draw_lock_badge(rect: Rect2) -> void:
@@ -215,7 +246,7 @@ func draw_lock_icon(center: Vector2, icon_scale: float = 1.0) -> void:
 	draw_circle(center + Vector2(0.0, 6.0) * icon_scale, 3.5 * icon_scale, Color("101d25"))
 
 
-func draw_design_button(rect: Rect2, label: String, detail: String, vertical: bool, enabled: bool) -> void:
+func draw_design_button(rect: Rect2, label: String, detail: String, vertical: bool, enabled: bool, icon: Texture2D = null) -> void:
 	var fill := Color("f2a918") if vertical and enabled else (Color("08aeb8") if enabled else Color("17475c"))
 	var border := Color("fff09a") if vertical and enabled else (Color("7fffff") if enabled else Color("496979"))
 	draw_rounded_panel(rect, fill, border, 22, 5)
@@ -227,8 +258,38 @@ func draw_design_button(rect: Rect2, label: String, detail: String, vertical: bo
 			draw_menu_gradient_text(title_font, Vector2(rect.position.x, rect.position.y + 44.0 + letter_index * 29.0), letters[letter_index], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 27, enabled)
 		draw_string(body_font, Vector2(rect.position.x, rect.end.y - 16.0), detail, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 9, Color("fff4bf") if enabled else Color("78909c"))
 	else:
-		draw_menu_gradient_text(title_font, rect.position + Vector2(24.0, 48.0), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 48.0, 29, enabled)
-		draw_string(body_font, rect.position + Vector2(26.0, 70.0), detail, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 52.0, 10, Color("d8ffff") if enabled else Color("78909c"))
+		var text_inset := 24.0
+		if icon != null:
+			draw_texture_rect(icon, Rect2(rect.position + Vector2(16.0, 15.0), Vector2(56.0, 56.0)), false, Color("fff09a") if enabled else Color("78909c"))
+			text_inset = 82.0
+		draw_menu_gradient_text(title_font, rect.position + Vector2(text_inset, 48.0), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - text_inset - 14.0, 27 if icon != null else 29, enabled)
+		draw_string(body_font, rect.position + Vector2(text_inset + 2.0, 70.0), detail, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - text_inset - 16.0, 9 if icon != null else 10, Color("d8ffff") if enabled else Color("78909c"))
+
+
+func draw_settings() -> void:
+	draw_underwater_home_background()
+	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.0, 0.02, 0.08, 0.42))
+	draw_rounded_panel(Rect2(24.0, 74.0, 492.0, 812.0), Color(0.015, 0.22, 0.40, 0.97), Color("7fffff"), 26, 5)
+	draw_menu_back()
+	if settings_texture != null:
+		draw_texture_rect(settings_texture, Rect2(54.0, 102.0, 62.0, 62.0), false, Color("d8ffff"))
+	draw_menu_gradient_text(title_font, Vector2(126.0, 148.0), "SETTINGS", HORIZONTAL_ALIGNMENT_LEFT, 300.0, 32)
+	draw_readable_text(story_font, Vector2(54.0, 210.0), "แตะหรือลากแถบเพื่อปรับระดับเสียง", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 17, Color("d9fbff"))
+	var labels := ["MASTER", "MUSIC", "EFFECT"]
+	var descriptions := ["ระดับเสียงรวม", "เพลง Menu / Stage / Boss", "เสียงปุ่มและ Game Over"]
+	for setting_index in range(game.SETTINGS_SLIDERS.size()):
+		var slider: Rect2 = game.SETTINGS_SLIDERS[setting_index]
+		var value: float = game.get_audio_setting(setting_index)
+		draw_menu_gradient_text(title_font, Vector2(slider.position.x, slider.position.y - 34.0), labels[setting_index], HORIZONTAL_ALIGNMENT_LEFT, 250.0, 22)
+		draw_readable_text(story_font, Vector2(slider.position.x, slider.position.y + 72.0), descriptions[setting_index], HORIZONTAL_ALIGNMENT_LEFT, slider.size.x, 14, Color("b8efff"))
+		draw_rounded_panel(slider, Color("06253f"), Color("4a8295"), 18, 2)
+		if value > 0.0:
+			draw_rounded_panel(Rect2(slider.position, Vector2(slider.size.x * value, slider.size.y)), Color("10b8c6"), Color("7fffff"), 18, 2)
+		var knob := Vector2(slider.position.x + slider.size.x * value, slider.get_center().y)
+		draw_circle(knob, 16.0, Color("fff09a"))
+		draw_arc(knob, 16.0, 0.0, TAU, 30, Color("ffffff"), 3.0)
+		draw_string(title_font, Vector2(slider.end.x - 76.0, slider.position.y - 30.0), "%d%%" % roundi(value * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, 76.0, 18, Color("fff09a"))
+	draw_readable_text(story_font, Vector2(54.0, 760.0), "ค่าระดับเสียงจะบันทึกอัตโนมัติและใช้ร่วมกันทั้ง PC / Mobile / Web", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 14, Color("d9fbff"))
 
 
 func draw_purchase_confirmation() -> void:
@@ -307,7 +368,7 @@ func draw_collection_select() -> void:
 	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.0, 0.02, 0.08, 0.48))
 	draw_menu_back()
 	draw_menu_gradient_text(title_font, Vector2(0.0, 83.0), "QUEST ARCHIVE", HORIZONTAL_ALIGNMENT_CENTER, SCREEN_SIZE.x, 30)
-	draw_string(story_font, Vector2(24.0, 124.0), "แตะ Folder ที่ปลดล็อกเพื่ออ่านข้อมูลและเปิดงานวิจัยต้นทาง", HORIZONTAL_ALIGNMENT_CENTER, 492.0, 14, Color("b8fbff"))
+	draw_readable_text(story_font, Vector2(24.0, 124.0), "แตะ Folder ที่ปลดล็อกเพื่ออ่านข้อมูลและเปิดงานวิจัยต้นทาง", HORIZONTAL_ALIGNMENT_CENTER, 492.0, 14, Color("d9fbff"))
 	for stage in range(1, game.FINAL_LEVEL + 1):
 		var card: Rect2 = game.STAGE_CARDS[stage - 1]
 		var found: bool = game.item_collection.has(stage)
@@ -324,9 +385,9 @@ func draw_quest_folder(card: Rect2, stage: int, found: bool) -> void:
 	# แฟ้มมีแถบ Tab ด้านบนและตัว Folder หลักที่กดเปิดได้
 	draw_rounded_panel(Rect2(card.position + Vector2(12.0, 4.0), Vector2(154.0, 30.0)), dark_fill, border, 9, 2)
 	draw_rounded_panel(Rect2(card.position + Vector2(0.0, 22.0), Vector2(card.size.x, 78.0)), fill, border, 13, 3 if found else 2)
-	draw_string(title_font, card.position + Vector2(18.0, 26.0), "FILE %02d" % stage, HORIZONTAL_ALIGNMENT_LEFT, 130.0, 13, Color("dfffff") if found else Color("66808d"))
-	draw_string(story_font, card.position + Vector2(24.0, 60.0), str(entry.get("folder", "UNKNOWN")) if found else "แฟ้มข้อมูลยังถูกล็อก", HORIZONTAL_ALIGNMENT_LEFT, 310.0, 18, Color.WHITE if found else Color("78909c"))
-	draw_string(story_font, card.position + Vector2(24.0, 88.0), "แตะเพื่อเปิดอ่าน" if found else "เคลียร์บทที่ %d เพื่อปลดล็อก" % stage, HORIZONTAL_ALIGNMENT_LEFT, 300.0, 13, Color("d3ffff") if found else Color("647784"))
+	draw_readable_text(title_font, card.position + Vector2(18.0, 20.0), "FILE %02d" % stage, HORIZONTAL_ALIGNMENT_LEFT, 130.0, 13, Color("efffff") if found else Color("91a5ae"), 2)
+	draw_readable_text(story_font, card.position + Vector2(24.0, 60.0), str(entry.get("folder", "UNKNOWN")) if found else "แฟ้มข้อมูลยังถูกล็อก", HORIZONTAL_ALIGNMENT_LEFT, 310.0, 18, Color.WHITE if found else Color("a4b5bd"), 2)
+	draw_readable_text(story_font, card.position + Vector2(24.0, 88.0), "แตะเพื่อเปิดอ่าน" if found else "เคลียร์บทที่ %d เพื่อปลดล็อก" % stage, HORIZONTAL_ALIGNMENT_LEFT, 300.0, 13, Color("e8ffff") if found else Color("91a5ae"), 2)
 	if found:
 		draw_menu_gradient_text(title_font, card.position + Vector2(346.0, 75.0), "OPEN", HORIZONTAL_ALIGNMENT_CENTER, 96.0, 16)
 	else:
@@ -341,17 +402,18 @@ func draw_quest_folder_detail() -> void:
 	draw_rounded_panel(Rect2(28.0, 118.0, 484.0, 748.0), Color("063d63"), Color("7fffff"), 24, 5)
 	draw_menu_back()
 	draw_rounded_panel(Rect2(54.0, 142.0, 186.0, 42.0), Color("087b91"), Color("7fffff"), 10, 2)
-	draw_string(title_font, Vector2(68.0, 171.0), "RESEARCH FILE %02d" % game.quest_open_stage, HORIZONTAL_ALIGNMENT_LEFT, 220.0, 16, Color.WHITE)
+	draw_readable_text(title_font, Vector2(68.0, 171.0), "RESEARCH %s" % str(entry.get("research_number", game.quest_open_stage)), HORIZONTAL_ALIGNMENT_LEFT, 220.0, 16, Color.WHITE)
 	var title_lines := wrap_text_by_chars(str(entry.title), 38)
 	draw_text_lines(story_font, Vector2(58.0, 226.0), title_lines, 420.0, 20, 29.0, Color.WHITE)
 	var citation_y := 238.0 + title_lines.size() * 29.0
-	draw_string(story_font, Vector2(58.0, citation_y), str(entry.citation), HORIZONTAL_ALIGNMENT_LEFT, 420.0, 13, Color("86e9ff"))
-	draw_string(story_font, Vector2(58.0, citation_y + 44.0), "สรุปเนื้อหา", HORIZONTAL_ALIGNMENT_LEFT, 420.0, 18, Color("fff07a"))
+	draw_readable_text(story_font, Vector2(58.0, citation_y), str(entry.citation), HORIZONTAL_ALIGNMENT_LEFT, 420.0, 13, Color("b8f4ff"), 2)
+	draw_readable_text(story_font, Vector2(58.0, citation_y + 44.0), "สรุปเนื้อหา", HORIZONTAL_ALIGNMENT_LEFT, 420.0, 18, Color("fff29a"), 2)
 	var summary_lines := wrap_text_by_chars(str(entry.summary), 43)
 	draw_text_lines(story_font, Vector2(58.0, citation_y + 78.0), summary_lines, 420.0, 16, 25.0, Color("e8fbff"))
-	draw_string(story_font, Vector2(58.0, 724.0), "ปุ่มด้านล่างจะเปิด DOI หรือคลังงานวิจัยของสถาบันต้นทาง", HORIZONTAL_ALIGNMENT_CENTER, 420.0, 12, Color("93cddd"))
-	draw_rounded_panel(game.QUEST_READ_BUTTON, Color("f2a918"), Color("fff09a"), 17, 4)
-	draw_menu_gradient_text(title_font, game.QUEST_READ_BUTTON.position + Vector2(0.0, 45.0), "READ SOURCE", HORIZONTAL_ALIGNMENT_CENTER, game.QUEST_READ_BUTTON.size.x, 20)
+	var fragment_locked := entry.has("fragment_group") and not bool(entry.get("fragment_complete", false))
+	draw_readable_text(story_font, Vector2(58.0, 724.0), "เก็บชิ้นส่วน 3-A และ 3-B เพื่อเปิดฉบับเต็ม" if fragment_locked else "ปุ่มด้านล่างจะเปิด DOI หรือคลังงานวิจัยของสถาบันต้นทาง", HORIZONTAL_ALIGNMENT_CENTER, 420.0, 12, Color("fff09a") if fragment_locked else Color("c8efff"), 2)
+	draw_rounded_panel(game.QUEST_READ_BUTTON, Color("263b4d") if fragment_locked else Color("f2a918"), Color("6f8793") if fragment_locked else Color("fff09a"), 17, 4)
+	draw_menu_gradient_text(title_font, game.QUEST_READ_BUTTON.position + Vector2(0.0, 45.0), "NEED BOTH PARTS" if fragment_locked else "READ SOURCE", HORIZONTAL_ALIGNMENT_CENTER, game.QUEST_READ_BUTTON.size.x, 17 if fragment_locked else 20, not fragment_locked)
 
 
 func wrap_text_by_chars(text: String, max_characters: int) -> Array[String]:
@@ -371,7 +433,7 @@ func wrap_text_by_chars(text: String, max_characters: int) -> Array[String]:
 
 func draw_text_lines(font: Font, start: Vector2, lines: Array[String], width: float, font_size: int, line_height: float, color: Color) -> void:
 	for line_index in range(lines.size()):
-		draw_string(font, start + Vector2(0.0, line_index * line_height), lines[line_index], HORIZONTAL_ALIGNMENT_LEFT, width, font_size, color)
+		draw_readable_text(font, start + Vector2(0.0, line_index * line_height), lines[line_index], HORIZONTAL_ALIGNMENT_LEFT, width, font_size, color, 2)
 
 
 func draw_scoreboard() -> void:
@@ -380,19 +442,21 @@ func draw_scoreboard() -> void:
 	draw_rounded_panel(Rect2(24.0, 74.0, 492.0, 836.0), Color(0.015, 0.22, 0.40, 0.97), Color("7fffff"), 26, 5)
 	draw_menu_back()
 	draw_menu_gradient_text(title_font, Vector2(38.0, 128.0), "SCORE BOARD", HORIZONTAL_ALIGNMENT_LEFT, 350.0, 31)
-	draw_string(body_font, Vector2(38.0, 158.0), "ENDLESS MODE  •  LOCAL TOP SCORES", HORIZONTAL_ALIGNMENT_LEFT, 420.0, 13, Color("b8fbff"))
+	var nightmare_endless: bool = game.difficulty_multiplier > 1
+	var active_scores: Array[int] = game.get_active_endless_scores()
+	draw_string(body_font, Vector2(38.0, 158.0), ("ENDLESS NIGHTMARE X%d" % game.difficulty_multiplier if nightmare_endless else "ENDLESS MODE") + "  •  LOCAL TOP SCORES", HORIZONTAL_ALIGNMENT_LEFT, 420.0, 13, Color("ffb2e8") if nightmare_endless else Color("b8fbff"))
 	draw_string(body_font, Vector2(38.0, 180.0), "VIPER: %d / %d" % [mini(game.get_endless_best_score(), game.VIPER_ENDLESS_UNLOCK_SCORE), game.VIPER_ENDLESS_UNLOCK_SCORE], HORIZONTAL_ALIGNMENT_LEFT, 420.0, 12, Color("fff07a") if not game.is_ship_unlocked(4) else Color("65ff9a"))
 	draw_rounded_panel(Rect2(56.0, 190.0, 428.0, 118.0), Color("07386d"), Color("fff09a"), 18, 4)
 	draw_string(body_font, Vector2(72.0, 224.0), "PERSONAL BEST", HORIZONTAL_ALIGNMENT_CENTER, 396.0, 15, Color("b8fbff"))
-	draw_string(title_font, Vector2(72.0, 280.0), "%08d" % game.get_endless_best_score(), HORIZONTAL_ALIGNMENT_CENTER, 396.0, 37, Color("fff07a"))
+	draw_string(title_font, Vector2(72.0, 280.0), "%08d" % game.get_active_endless_best_score(), HORIZONTAL_ALIGNMENT_CENTER, 396.0, 37, Color("fff07a"))
 	for rank_index in range(game.MAX_SCOREBOARD_ENTRIES):
 		var row := Rect2(62.0, 334.0 + rank_index * 75.0, 416.0, 58.0)
 		draw_rounded_panel(row, Color("06315b") if rank_index % 2 == 0 else Color("052b50"), Color(0.25, 0.82, 0.90, 0.48), 12, 2)
-		var rank_score: int = game.endless_scores[rank_index] if rank_index < game.endless_scores.size() else 0
+		var rank_score: int = active_scores[rank_index] if rank_index < active_scores.size() else 0
 		draw_string(title_font, row.position + Vector2(18.0, 38.0), "#%d" % (rank_index + 1), HORIZONTAL_ALIGNMENT_LEFT, 70.0, 19, Color("fff07a") if rank_index == 0 else Color.WHITE)
 		draw_string(title_font, row.position + Vector2(104.0, 38.0), "%08d" % rank_score if rank_score > 0 else "--------", HORIZONTAL_ALIGNMENT_RIGHT, 282.0, 20, Color.WHITE if rank_score > 0 else Color("66889a"))
 	draw_rounded_panel(game.SCOREBOARD_START_BUTTON, Color("f2a918"), Color("fff09a"), 18, 4)
-	draw_menu_gradient_text(title_font, game.SCOREBOARD_START_BUTTON.position + Vector2(0.0, 38.0), "START ENDLESS", HORIZONTAL_ALIGNMENT_CENTER, game.SCOREBOARD_START_BUTTON.size.x, 21)
+	draw_menu_gradient_text(title_font, game.SCOREBOARD_START_BUTTON.position + Vector2(0.0, 38.0), "START ENDLESS NM" if nightmare_endless else "START ENDLESS", HORIZONTAL_ALIGNMENT_CENTER, game.SCOREBOARD_START_BUTTON.size.x, 19 if nightmare_endless else 21)
 	draw_string(body_font, game.SCOREBOARD_START_BUTTON.position + Vector2(0.0, 64.0), "SURVIVE • DEFEAT BOSSES • SET A HIGH SCORE", HORIZONTAL_ALIGNMENT_CENTER, game.SCOREBOARD_START_BUTTON.size.x, 9, Color("fff4bf"))
 
 
@@ -406,8 +470,11 @@ func draw_hud() -> void:
 
 	draw_rect(Rect2(144.0, 14.0, 126.0, 66.0), panel_fill)
 	draw_rect(Rect2(144.0, 14.0, 126.0, 66.0), panel_border, false, 1.0)
-	draw_string(body_font, Vector2(144.0, 36.0), "ENDLESS" if game.endless_mode else ("SPECIAL" if game.special_stage_mode else "STAGE %d" % game.level), HORIZONTAL_ALIGNMENT_CENTER, 126.0, 12, Color("76dfff"))
-	draw_string(title_font, Vector2(144.0, 65.0), "BOSS #%d" % (game.endless_bosses_defeated + 1) if game.endless_mode else ("BOSS 6" if game.special_stage_mode else "PHASE %d / %d" % [game.stage_level, game.LEVELS_PER_STAGE]), HORIZONTAL_ALIGNMENT_CENTER, 126.0, 15, Color.WHITE)
+	var mode_label := "ENDLESS" if game.endless_mode else ("SPECIAL" if game.special_stage_mode else "STAGE %d" % game.level)
+	if game.difficulty_multiplier > 1 and not game.special_stage_mode:
+		mode_label += " NM×%d" % game.difficulty_multiplier
+	draw_string(body_font, Vector2(144.0, 36.0), mode_label, HORIZONTAL_ALIGNMENT_CENTER, 126.0, 11, Color("ff9de1") if game.difficulty_multiplier > 1 else Color("76dfff"))
+	draw_string(title_font, Vector2(144.0, 65.0), "BOSS #%d" % (game.endless_bosses_defeated + 1) if game.endless_mode else ("BOSS %d" % game.SPECIAL_BOSS_LEVEL if game.special_stage_mode else "PHASE %d / %d" % [game.stage_level, game.LEVELS_PER_STAGE]), HORIZONTAL_ALIGNMENT_CENTER, 126.0, 15, Color.WHITE)
 
 	draw_rect(Rect2(280.0, 14.0, 154.0, 66.0), panel_fill)
 	draw_rect(Rect2(280.0, 14.0, 154.0, 66.0), panel_border, false, 1.0)
@@ -477,6 +544,23 @@ func draw_overlay(heading: String, subheading: String) -> void:
 	draw_rect(Rect2(40.0, 330.0, 460.0, 250.0), Color(0.29, 0.88, 1.0, 0.68), false, 2.0)
 	draw_string(title_font, Vector2(40.0, 415.0), heading, HORIZONTAL_ALIGNMENT_CENTER, 460.0, 34, Color("eafcff"))
 	draw_string(body_font, Vector2(40.0, 480.0), subheading, HORIZONTAL_ALIGNMENT_CENTER, 460.0, 18, Color("8eeaff"))
+
+
+func draw_pause_menu() -> void:
+	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.01, 0.015, 0.06, 0.84))
+	draw_rounded_panel(Rect2(62.0, 270.0, 416.0, 414.0), Color(0.025, 0.07, 0.16, 0.98), Color("65efff"), 25, 4)
+	draw_menu_gradient_text(title_font, Vector2(62.0, 340.0), "PAUSED", HORIZONTAL_ALIGNMENT_CENTER, 416.0, 34)
+	var buttons := [
+		[game.PAUSE_RESUME_BUTTON, "RESUME", Color("087b91")],
+		[game.PAUSE_RESTART_BUTTON, "RESTART", Color("9a6410")],
+		[game.PAUSE_MENU_BUTTON, "MENU", Color("7e2444")]
+	]
+	for button_data in buttons:
+		var rect: Rect2 = button_data[0]
+		draw_rounded_panel(rect, button_data[2], Color("dfffff"), 15, 3)
+		draw_menu_gradient_text(title_font, rect.position + Vector2(0.0, 44.0), button_data[1], HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 20)
+	var warning := "ENDLESS rewards and score are kept" if game.endless_mode else "Leaving now gives no reward from this Stage"
+	draw_string(body_font, Vector2(82.0, 657.0), warning, HORIZONTAL_ALIGNMENT_CENTER, 376.0, 13, Color("ffe391") if game.endless_mode else Color("ff9fb5"))
 
 
 func draw_summary() -> void:

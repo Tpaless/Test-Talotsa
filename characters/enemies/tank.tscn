@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource path="res://assets/sprites/enemy_tank.svg" type="Texture2D" id="1_texture"]
+[ext_resource path="res://assets/sprites/enemy_tank.png" type="Texture2D" id="1_texture"]
 [ext_resource type="Script" path="res://scripts/combatant_visual.gd" id="2_visual"]
 
 [node name="Tank" type="Sprite2D"]

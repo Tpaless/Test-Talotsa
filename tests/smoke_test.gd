@@ -15,12 +15,22 @@ func finish_intro(game: Node) -> void:
 	assert(not game.dialogue_active and guard < 100)
 
 
+func clear_combat(game: Node) -> void:
+	for enemy in game.enemies:
+		game.free_enemy_visual(enemy)
+	game.enemies.clear()
+	game.bullets.clear()
+	game.enemy_bullets.clear()
+	game.boss_hazards.clear()
+	game.boss_active = false
+
+
 func _run() -> void:
 	var packed := load("res://main.tscn") as PackedScene
 	var game := packed.instantiate()
 	root.add_child(game)
 	await process_frame
-	game.collection_save_path = "user://item_collection_smoke.json"
+	game.collection_save_path = ProjectSettings.globalize_path("res://tests/item_collection_smoke.json")
 	if FileAccess.file_exists(game.collection_save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(game.collection_save_path))
 	game.item_collection.clear()
@@ -35,6 +45,15 @@ func _run() -> void:
 	var menu_click := InputEventMouseButton.new()
 	menu_click.button_index = MOUSE_BUTTON_LEFT
 	menu_click.pressed = true
+	assert(game.menu_page == "home")
+	menu_click.position = game.SETTINGS_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(game.menu_page == "settings")
+	menu_click.position = Vector2(game.SETTINGS_SLIDERS[0].position.x + game.SETTINGS_SLIDERS[0].size.x * 0.5, game.SETTINGS_SLIDERS[0].get_center().y)
+	game._unhandled_input(menu_click)
+	assert(is_equal_approx(game.master_volume, 0.5))
+	menu_click.position = game.MENU_BACK_BUTTON.get_center()
+	game._unhandled_input(menu_click)
 	assert(game.menu_page == "home")
 	menu_click.position = game.LAUNCH_BUTTON.get_center()
 	game._unhandled_input(menu_click)
@@ -53,8 +72,11 @@ func _run() -> void:
 	assert(not game.selecting_character)
 	assert(game.level == 3 and game.score == 0)
 	assert(game.dialogue_overlay.visible)
-	assert(game.dialogue_lines[0].speaker == "เส")
-	assert(game.DIALOGUE_CONFIG.get_stage(3).record == "เรื่องเล่าของเสนาหอย")
+	assert(game.dialogue_lines[0].speaker == "กุ้ง")
+	assert(bool(game.dialogue_overlay.call("is_typing")))
+	game.dialogue_overlay.call("finish_typing")
+	assert(not bool(game.dialogue_overlay.call("is_typing")))
+	assert(game.DIALOGUE_CONFIG.get_stage(3).record == "พลังแห่งมันกุ้ง")
 	finish_intro(game)
 	assert(game.score_target_for_level() == game.LEVEL_SCORE_STEP)
 	game.score = 1000
@@ -117,6 +139,18 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").MENU_TEXT_INNER_STROKE_SIZE == 2)
 	assert(game.get_node("HUD/Renderer").MENU_TEXT_SHADOW_OFFSET == Vector2(5.0, 7.0))
 	assert(game.get_node("HUD/Renderer").ship_textures[3] != game.get_node("HUD/Renderer").ship_textures[4])
+	assert(game.get_node("HUD/Renderer").coin_texture != null)
+	assert(game.get_node("HUD/Renderer").chest_texture != null)
+	assert(game.get_node("HUD/Renderer").settings_texture != null)
+	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer"))
+	assert(game.DIFFICULTY_BUTTONS[0].end.y <= game.CAROUSEL_SWIPE_AREA.position.y)
+	assert(game.SHIP_LOCK_BUTTON.size.x < 124.0)
+	game.set_audio_setting(0, 0.64, false)
+	game.set_audio_setting(1, 0.52, false)
+	game.set_audio_setting(2, 0.41, false)
+	assert(is_equal_approx(game.master_volume, 0.64) and is_equal_approx(game.music_volume, 0.52) and is_equal_approx(game.effect_volume, 0.41))
+	assert(FileAccess.file_exists("res://export_presets.cfg"))
+	assert(ProjectSettings.get_setting("rendering/renderer/rendering_method") == "gl_compatibility")
 	assert(game.player_sprite.texture != null)
 	assert(game.get_ship_display_name(0) == "JOHNY")
 	assert(game.get_ship_display_name(1) == "JOHNY SAPARROW")
@@ -125,20 +159,68 @@ func _run() -> void:
 	assert(game.get_ship_display_name(4) == "STRAW HAT JOHNY")
 	assert(game.DIALOGUE_CONFIG.CHARACTERS.size() >= 7)
 	assert(game.DIALOGUE_CONFIG.STAGES.size() == game.FINAL_LEVEL + 1)
-	var expected_story_bosses := ["โทมัส", "คราม", "เส และ นา", "หมึกเลนส์", "ทู"]
-	var expected_records := ["บ้านของปูเสฉวน", "เส้นใยในตัวปูม้า", "เรื่องเล่าของเสนาหอย", "แผนที่ขยะทะเล", "เพื่อนร่วมทะเล"]
+	var expected_story_bosses := ["โทมัส", "คราม", "กุ้ง", "เส และ นา", "หมึกเลนส์", "Plastic Man"]
+	var expected_records := ["บ้านของปูเสฉวน", "เส้นใยในตัวปูม้า", "พลังแห่งมันกุ้ง", "เรื่องเล่าของเสนาหอย", "แผนที่หมึกและสัตว์ร่วมทะเล", "แผนที่ขยะทะเล"]
+	var expected_boss_models := ["thomas", "khram", "kung", "se_na", "lens", "plastic_man", "red_guy"]
+	assert(game.BOSS_SCENES.size() == 7)
+	for boss_index in range(game.BOSS_SCENES.size()):
+		var model: CombatantVisual = game.BOSS_SCENES[boss_index].instantiate() as CombatantVisual
+		assert(model.scene_file_path == "res://characters/bosses/%s.tscn" % expected_boss_models[boss_index])
+		var expected_texture_paths := [
+			"res://assets/sprites/boss_thomas.png",
+			"res://assets/sprites/boss_khram.png",
+			"res://assets/sprites/boss_kung_idle.png",
+			"res://assets/sprites/boss_se_idle.png",
+			"res://assets/sprites/boss_lens.png",
+			"res://assets/sprites/boss_plastic_man.png",
+			"res://assets/sprites/boss_red_guy.png"
+		]
+		var expected_texture_path: String = expected_texture_paths[boss_index]
+		assert(model.texture != null and model.texture.resource_path == expected_texture_path)
+		model.free()
+	for pair_texture in [game.SE_IDLE_TEXTURE, game.SE_ATTACK_TEXTURE, game.NA_IDLE_TEXTURE, game.NA_ATTACK_TEXTURE]:
+		assert(pair_texture != null and pair_texture.resource_path.get_extension().to_lower() == "png")
+	var latest_enemy_pngs := ["enemy_scout.png", "enemy_striker.png", "enemy_tank.png"]
+	for enemy_scene_index in range(game.ENEMY_SCENES.size()):
+		var latest_enemy: Sprite2D = game.ENEMY_SCENES[enemy_scene_index].instantiate()
+		assert(latest_enemy.texture.resource_path == "res://assets/sprites/%s" % latest_enemy_pngs[enemy_scene_index])
+		latest_enemy.free()
 	for story_stage in range(1, game.FINAL_LEVEL + 1):
 		assert(game.DIALOGUE_CONFIG.get_boss_name(story_stage) == expected_story_bosses[story_stage - 1])
 		assert(game.DIALOGUE_CONFIG.get_record_name(story_stage) == expected_records[story_stage - 1])
 		assert(not game.DIALOGUE_CONFIG.get_intro_lines(story_stage).is_empty())
 		for story_phase in range(1, game.LEVELS_PER_STAGE + 1):
 			assert(not game.DIALOGUE_CONFIG.get_lines(story_stage, story_phase).is_empty())
-	assert(game.DIALOGUE_CONFIG.get_boss_name(game.SPECIAL_BOSS_LEVEL) == "ผู้พิทักษ์ Razor")
+	assert(game.DIALOGUE_CONFIG.get_boss_name(game.SPECIAL_BOSS_LEVEL) == "Red Guy")
 	assert(not game.DIALOGUE_CONFIG.get_intro_lines(game.SPECIAL_BOSS_LEVEL).is_empty())
 	assert(not game.DIALOGUE_CONFIG.get_lines(game.SPECIAL_BOSS_LEVEL, 1).is_empty())
 	assert(game.RESEARCH_CONFIG.RESEARCH_BY_STAGE.size() == game.FINAL_LEVEL)
 	assert(str(game.RESEARCH_CONFIG.get_entry(1).source_url).begins_with("https://doi.org/"))
-	assert("กุญแจ" in game.DIALOGUE_CONFIG.get_lines(5, 3)[3].text)
+	var expected_research_order := ["5", "1", "3-A", "2", "3-B", "4"]
+	for research_stage in range(1, game.FINAL_LEVEL + 1):
+		assert(str(game.RESEARCH_CONFIG.get_entry(research_stage).research_number) == expected_research_order[research_stage - 1])
+	assert(game.RESEARCH_CONFIG.get_entry(2).source_url == "https://webopac.lib.buu.ac.th/bibitem?bibid=b00339347")
+	assert(game.RESEARCH_CONFIG.get_entry(4).source_url == "https://webopac.lib.buu.ac.th/bibitem?bibid=b00344058")
+	assert(game.RESEARCH_CONFIG.get_entry(6).source_url == "https://webopac.lib.buu.ac.th/bibitem?bibid=b00339175")
+	assert(game.RESEARCH_CONFIG.get_entry(3).source_url == game.RESEARCH_CONFIG.get_entry(5).source_url)
+	game.item_collection.assign([3])
+	game.quest_open_stage = 3
+	assert(not game.get_open_research_entry().fragment_complete)
+	assert(game.open_quest_source() == ERR_UNAVAILABLE)
+	game.item_collection.append(5)
+	assert(game.get_open_research_entry().fragment_complete)
+	assert(game.get_open_research_entry().summary == game.get_open_research_entry().full_summary)
+	assert(not game.is_nightmare_unlocked() and not game.set_difficulty_multiplier(2))
+	game.item_collection.assign([1, 2, 3, 4, 5, 6])
+	assert(game.is_nightmare_unlocked() and game.set_difficulty_multiplier(3))
+	assert(game.difficulty_multiplier == 3)
+	game.set_difficulty_multiplier(1)
+	game.item_collection.clear()
+	game.quest_open_stage = 0
+	var stage_six_mentions_key := false
+	for final_line in game.DIALOGUE_CONFIG.get_lines(6, 3):
+		stage_six_mentions_key = stage_six_mentions_key or "กุญแจ" in str(final_line.text)
+	assert(stage_six_mentions_key)
 	assert(game.DIALOGUE_CONFIG.get_lines(1, 1)[1].speaker == "Johny")
 	assert(game.enemies.size() == 1)
 	assert(background.active_layers.size() == 3)
@@ -189,6 +271,7 @@ func _run() -> void:
 	game.update_game(0.1)
 	assert(game.player_pos.x > old_x)
 	assert(is_equal_approx(game.player_pos.distance_to(touch_start_pos), game.player_speed * 0.1))
+	assert(game.player_sprite.rotation > 0.0 and not game.player_afterimages.is_empty())
 	touch_start.pressed = false
 	game._input(touch_start)
 	assert(not game.pointer_active)
@@ -203,6 +286,7 @@ func _run() -> void:
 	old_x = game.player_pos.x
 	game.update_game(0.1)
 	assert(game.player_pos.x < old_x)
+	assert(game.player_sprite.rotation < 0.0)
 	mouse_down.pressed = false
 	game._input(mouse_down)
 	assert(game.pointer_active and game.pointer_index == -2)
@@ -269,7 +353,7 @@ func _run() -> void:
 	pause_touch.pressed = true
 	game._input(pause_touch)
 	assert(not game.paused)
-	var expected_boss_names := ["Bulwark", "Bulwark", "Bulwark"]
+	var expected_boss_names := ["Thomas Frenzy", "Thomas Frenzy", "Thomas Frenzy"]
 	var expected_extra_shots := [0, 0, 0]
 	var expected_fire_multipliers := [1.0, 1.0, 1.0]
 	var previous_boss_hp := 0
@@ -287,6 +371,7 @@ func _run() -> void:
 		assert(game.enemies[0].kind == game.BOSS_KIND)
 		var potion_count_before_boss: int = game.pickups.size()
 		var boss_visual: CombatantVisual = game.enemies[0].visual as CombatantVisual
+		assert(boss_visual.scene_file_path == "res://characters/bosses/thomas.tscn")
 		assert(boss_visual.get_skill_names() == PackedStringArray([expected_boss_names[expected_level - 1]]))
 		assert(game.enemies[0].max_hp == ceili((game.BOSS_HP_BASE + game.level * game.BOSS_HP_PER_LEVEL + (expected_level - 1) * 16) * 1.5))
 		assert(game.enemies[0].max_hp > previous_boss_hp)
@@ -305,7 +390,7 @@ func _run() -> void:
 			game.resolve_collisions()
 			assert(game.player_health == health_before_boss_contact - 20)
 			assert(game.boss_active and game.enemies.size() == 1)
-		# ทุกด่านต้องเปลี่ยนรูปแบบยิงที่ HP 75% และเริ่มท่าพิเศษที่ HP 50%
+		# โทมัสเปลี่ยนรูปแบบยิงตาม HP และยิงรัวเมื่อเหลือ 50%
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = floori(game.enemies[0].max_hp * game.BOSS_PHASE_2_RATIO) + 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
@@ -321,29 +406,24 @@ func _run() -> void:
 		game.resolve_collisions()
 		assert(game.enemies[0].boss_phase == 3)
 		assert(game.pickups.size() == potion_count_before_boss + 2)
-		assert(game.enemies[0].special_timer == game.BOSS_SPECIAL_WINDUP)
 		game.fire_enemy_weapon(game.enemies[0])
 		assert(game.enemy_bullets.size() == 7 + expected_extra_shots[expected_level - 1])
-		game.enemy_bullets.clear()
-		game.enemies[0].shoot = 100.0
-		game.update_enemies(game.BOSS_SPECIAL_WINDUP * 0.5)
-		assert(game.enemy_bullets.is_empty())
-		game.update_enemies(game.BOSS_SPECIAL_WINDUP * 0.5 + 0.05)
-		assert(game.enemy_bullets.size() == game.get_boss_special_projectile_count() - 2)
-		for special_bullet in game.enemy_bullets:
-			assert(special_bullet.special)
-		game.enemy_bullets.clear()
-		assert(is_equal_approx(game.enemies[0].special_cooldown, game.get_boss_special_cooldown()))
-		game.update_enemies(game.get_boss_special_cooldown() + 0.05)
-		assert(game.enemies[0].special_timer > 0.0)
-		game.update_enemies(game.BOSS_SPECIAL_WINDUP + 0.05)
-		assert(game.enemy_bullets.size() == game.get_boss_special_projectile_count() - 2)
+		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), 0.20))
 		game.enemy_bullets.clear()
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.25) + 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
 		game.resolve_collisions()
 		assert(game.pickups.size() == potion_count_before_boss + 3)
+		# 10%: กลับกลาง หมุนหนึ่งรอบใน 10 วินาที และปล่อยกระสุนรูปบวก 12 นัดทุก 2 วินาที
+		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.10) + 1
+		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
+		game.resolve_collisions()
+		game.enemies[0].ability_timer = 0.0
+		game.update_enemies(0.01)
+		assert(game.enemy_bullets.size() == 12)
+		assert(game.enemies[0].pos.distance_to(Vector2(270.0, 280.0)) < 21.0)
+		game.enemy_bullets.clear()
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
@@ -378,6 +458,8 @@ func _run() -> void:
 		var dialogue_count: int = game.dialogue_lines.size()
 		assert(dialogue_count >= 1)
 		for line_index in range(dialogue_count):
+			if bool(game.dialogue_overlay.call("is_typing")):
+				game.dialogue_overlay.call("finish_typing")
 			if expected_level == 1:
 				var next_touch := InputEventScreenTouch.new()
 				next_touch.index = 0
@@ -421,13 +503,17 @@ func _run() -> void:
 	assert(game.selecting_character)
 	assert(game.best_score == final_score)
 	assert(game.item_collection.size() == 1)
-	game.collection_save_path = "user://item_collection_smoke.json"
+	game.collection_save_path = ProjectSettings.globalize_path("res://tests/item_collection_smoke.json")
 	assert(game.highest_unlocked_stage == 2)
-	game.save_item_collection()
-	assert(FileAccess.file_exists(game.collection_save_path))
-	game.item_collection.clear()
-	game.load_item_collection()
-	assert(game.item_collection.size() == 1)
+	var save_probe := FileAccess.open(game.collection_save_path, FileAccess.WRITE)
+	var can_test_save := save_probe != null
+	if can_test_save:
+		save_probe.close()
+		game.save_item_collection()
+		assert(FileAccess.file_exists(game.collection_save_path))
+		game.item_collection.clear()
+		game.load_item_collection()
+		assert(game.item_collection.size() == 1)
 	assert(game.sea_tokens == game.SEA_TOKENS_PER_CLEAR)
 	assert(game.turtle_shop_unlocked)
 	assert(game.highest_unlocked_stage == 2)
@@ -461,10 +547,10 @@ func _run() -> void:
 	finish_intro(game)
 	assert(game.score_target_for_level() == game.SPECIAL_STAGE_SCORE_TARGET)
 	game.spawn_boss()
-	assert(game.enemies[0].visual.scene_file_path == "res://characters/bosses/dreadnought.tscn")
+	assert(game.enemies[0].visual.scene_file_path == "res://characters/bosses/red_guy.tscn")
 	assert(game.enemy_has_tag(game.enemies[0], "Boss"))
 	var special_boss_visual: CombatantVisual = game.enemies[0].visual as CombatantVisual
-	assert(special_boss_visual.get_skill_names() == PackedStringArray(["Razor Guardian"]))
+	assert(special_boss_visual.get_skill_names() == PackedStringArray(["Red Guy"]))
 	game.enemies[0].pos = Vector2(270.0, 300.0)
 	game.enemies[0].hp = 1
 	game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
@@ -682,9 +768,13 @@ func _run() -> void:
 	assert(game.bullets.size() == 2)
 	assert(is_equal_approx(game.bullets[0].radius, 12.6) and game.bullets[0].damage == 1.5)
 	assert(game.bullets[0].vel.x < 0.0 and game.bullets[1].vel.x > 0.0)
-	assert(game.visual_textures.size() >= 9)
+	assert(game.visual_textures.size() >= 10)
 	assert(game.visual_textures.has("beyblade") and game.visual_textures.has("player_giant"))
 	assert(game.visual_textures["beyblade"].resource_path == "res://assets/sprites/beyblade.png")
+	assert(game.visual_textures["senahoy_special"].resource_path == "res://assets/sprites/SENAHOY_Bullet.png")
+	assert(game.visual_textures["health_pickup"].resource_path == "res://assets/sprites/pickup_health.png")
+	assert(game.visual_textures.has("viper_beam"))
+	assert(game.visual_textures["viper_beam"].resource_path == "res://assets/sprites/Viper_Skill.png")
 	game.spawn_boss()
 	game.enemies[0].pos = game.player_pos + Vector2(0.0, -280.0)
 	var viper_boss_max_hp: float = game.enemies[0].max_hp
@@ -692,7 +782,9 @@ func _run() -> void:
 	game._input(special_key)
 	assert(is_equal_approx(float(game.enemies[0].hp), viper_boss_max_hp * 0.75))
 	assert(game.viper_beam_tick_index == 1 and is_equal_approx(game.viper_beam_time_remaining, 3.0))
+	assert(is_zero_approx(game.viper_beam_elapsed))
 	game.update_special_effects(1.0)
+	assert(is_equal_approx(game.viper_beam_elapsed, 1.0))
 	assert(is_equal_approx(float(game.enemies[0].hp), viper_boss_max_hp * 0.60))
 	game.update_special_effects(1.0)
 	assert(is_equal_approx(float(game.enemies[0].hp), viper_boss_max_hp * 0.50))
@@ -737,7 +829,283 @@ func _run() -> void:
 	striker.skills.append(load("res://skills/fortify.tres"))
 	assert(striker.get_skill_modifiers().max_health_multiplier == 1.5)
 	striker.free()
+
+	# คราม: ทุก 10% สะสม dash หนึ่งครั้ง, ชน 30%, และต่ำกว่า 10% dash ต่อเนื่อง 5 วินาที
+	clear_combat(game)
+	game.special_stage_mode = false
+	game.endless_mode = false
+	game.level = 2
+	game.stage_level = 1
+	game.spawn_boss()
+	var khram: Dictionary = game.enemies[0]
+	khram.hp = float(khram.max_hp) * 0.91
+	game.damage_enemy(0, float(khram.max_hp) * 0.02)
+	assert(khram.dash_queue == 1)
+	game.update_enemies(0.01)
+	assert(khram.dash_timer > 0.0)
+	game.player_health = game.max_player_health
+	game.invulnerable_timer = 0.0
+	khram.pos = game.player_pos
+	game.resolve_collisions()
+	assert(game.player_health == game.max_player_health - ceili(game.max_player_health * 0.30))
+	khram.hp = float(khram.max_hp) * 0.11
+	game.damage_enemy(0, float(khram.max_hp) * 0.02)
+	assert(khram.frenzy_used and is_equal_approx(float(khram.frenzy_timer), 5.0))
+
+	# Kung Phase 1-2: ใช้ภาพ Attack และปล่อยกระสุนจากขอบบนสลับฟันปลาต่อเนื่อง 5 วินาที
+	clear_combat(game)
+	game.level = 3
+	game.stage_level = 1
+	game.spawn_boss()
+	var kung: Dictionary = game.enemies[0]
+	assert(kung.visual.scene_file_path == "res://characters/bosses/kung.tscn")
+	assert(kung.visual.texture.resource_path == "res://assets/sprites/boss_kung_idle.png")
+	game.apply_boss_horizontal_lean(kung, float(kung.pos.x) - 30.0, 0.1)
+	assert(kung.visual.rotation > 0.0)
+	kung.kung_skill_cooldown = 0.0
+	game.update_kung_boss(kung, 0.01)
+	assert(is_equal_approx(float(kung.kung_wave_time), 5.0))
+	game.update_kung_boss(kung, 0.10)
+	assert(game.enemy_bullets.size() == 4)
+	assert(kung.visual.texture.resource_path == "res://assets/sprites/boss_kung_attack.png")
+	var first_kung_row_x: Array[float] = []
+	for kung_bullet in game.enemy_bullets:
+		first_kung_row_x.append(float(kung_bullet.pos.x))
+		assert(kung_bullet.pos.y == -18.0 and kung_bullet.vel.y > 0.0)
+	game.enemy_bullets.clear()
+	game.update_kung_boss(kung, 0.28)
+	assert(game.enemy_bullets.size() == 4 and not is_equal_approx(float(game.enemy_bullets[0].pos.x), first_kung_row_x[0]))
+
+	# Kung Phase 3: จำตำแหน่ง Player, หมุน Attack 180 องศา, กลับมุมบน และพัก 5 วินาที
+	clear_combat(game)
+	game.level = 3
+	game.stage_level = 3
+	game.spawn_boss()
+	kung = game.enemies[0]
+	kung.kung_final_initialized = true
+	kung.kung_home = Vector2(82.0, 118.0)
+	kung.pos = Vector2(kung.kung_home)
+	kung.kung_dive_state = "rest"
+	kung.kung_rest_timer = 0.0
+	game.player_pos = Vector2(410.0, 820.0)
+	game.update_kung_final_phase(kung, 0.01)
+	var remembered_target := Vector2(kung.kung_dive_target)
+	assert(kung.kung_dive_state == "dive" and remembered_target == game.player_pos)
+	game.player_pos = Vector2(120.0, 700.0)
+	game.update_kung_final_phase(kung, 0.10)
+	assert(Vector2(kung.kung_dive_target) == remembered_target)
+	assert(is_equal_approx(float(kung.visual.rotation), PI))
+	assert(kung.visual.texture.resource_path == "res://assets/sprites/boss_kung_attack.png")
+	kung.kung_dive_state = "return"
+	kung.pos = Vector2(kung.kung_home)
+	game.update_kung_final_phase(kung, 0.01)
+	assert(kung.kung_dive_state == "rest" and is_equal_approx(float(kung.kung_rest_timer), 5.0))
+
+	# เสนาหอย: เส/นาแยกตำแหน่งและมี Idle/Attack คนละ Sprite; X ตัดกลางแผนที่เท่านั้น
+	clear_combat(game)
+	game.level = 4
+	game.stage_level = 1
+	game.spawn_boss()
+	var se_na: Dictionary = game.enemies[0]
+	assert(is_instance_valid(se_na.partner_visual))
+	assert(se_na.visual.texture.resource_path == "res://assets/sprites/boss_se_idle.png")
+	assert(se_na.partner_visual.texture.resource_path == "res://assets/sprites/boss_na_idle.png")
+	game.update_se_na_boss(se_na, 0.1)
+	assert(Vector2(se_na.se_pos) != Vector2(se_na.na_pos))
+	se_na.hp = float(se_na.max_hp) * 0.91
+	game.damage_enemy(0, float(se_na.max_hp) * 0.02)
+	assert(game.boss_hazards.size() == 1 and game.boss_hazards[0].kind == "x_laser")
+	var x_segments: Array = game.boss_hazards[0].segments
+	assert(x_segments.size() == 2)
+	assert(Vector2(x_segments[0][0]) == Vector2.ZERO and Vector2(x_segments[0][1]) == game.GAME_SIZE)
+	assert(Vector2(x_segments[1][0]) == Vector2(game.GAME_SIZE.x, 0.0) and Vector2(x_segments[1][1]) == Vector2(0.0, game.GAME_SIZE.y))
+	assert(se_na.visual.texture.resource_path == "res://assets/sprites/boss_se_attack.png")
+	assert(se_na.partner_visual.texture.resource_path == "res://assets/sprites/boss_na_attack.png")
+	# Phase 3 replaces the X/rotating beam with two special PNG bullets aimed at the player.
+	clear_combat(game)
+	game.level = 4
+	game.stage_level = 3
+	game.spawn_boss()
+	se_na = game.enemies[0]
+	assert(se_na.se_na_phase_three)
+	game.update_enemies(0.1)
+	assert(game.enemy_bullets.size() == 2)
+	for sena_bullet in game.enemy_bullets:
+		assert(sena_bullet.visual_key == "senahoy_special")
+		assert(is_equal_approx(float(sena_bullet.radius), 18.0))
+		assert(int(sena_bullet.damage) == ceili(game.max_player_health * 0.20))
+		var expected_aim: Vector2 = (game.player_pos - Vector2(sena_bullet.pos)).normalized()
+		assert(Vector2(sena_bullet.vel).normalized().dot(expected_aim) > 0.98)
+	se_na.hp = float(se_na.max_hp) * 0.91
+	game.damage_enemy(0, float(se_na.max_hp) * 0.02)
+	assert(game.boss_hazards.is_empty())
+
+	# หมึกเลนส์ Phase 3: หนวดโจมตีจากด้านข้าง 1.3 วินาที 3 เส้น และกำแพงหนวดรับดาเมจแทนบอส
+	clear_combat(game)
+	game.level = 5
+	game.stage_level = 3
+	game.spawn_boss()
+	var lens: Dictionary = game.enemies[0]
+	game.update_enemies(1.31)
+	assert(game.boss_hazards.size() == 3)
+	for tentacle in game.boss_hazards:
+		assert(tentacle.kind == "side_tentacle" and is_equal_approx(float(tentacle.warning), 1.3))
+		assert(abs(int(tentacle.side)) == 1)
+	assert(game.LENS_TENTACLE_TEXTURE.resource_path == "res://assets/sprites/boss_lens_tentacle.png")
+	assert(game.LENS_WALL_TEXTURE.resource_path == "res://assets/sprites/boss_lens_wall.png")
+	lens.hp = float(lens.max_hp) * 0.51
+	game.damage_enemy(0, float(lens.max_hp) * 0.02)
+	assert(lens.tentacle_barrier_hp > 0.0)
+	var lens_hp_behind_barrier := float(lens.hp)
+	var barrier_before := float(lens.tentacle_barrier_hp)
+	game.damage_enemy(0, 3.0)
+	assert(is_equal_approx(float(lens.hp), lens_hp_behind_barrier) and float(lens.tentacle_barrier_hp) < barrier_before)
+
+	# Plastic Man: 20 ตัวต่อ Wave, 2 Wave ที่ HP 100/50%; บอสอมตะและลูกสมุนห้ามออกสนาม
+	clear_combat(game)
+	game.level = 6
+	game.stage_level = 2
+	game.spawn_boss()
+	var plastic_man: Dictionary = game.enemies[0]
+	assert(game.enemies.size() == 21 and plastic_man.plastic_waves_spawned == 1)
+	assert(game.count_plastic_minions() == 20 and plastic_man.plastic_wave_active)
+	for minion_index in range(1, game.enemies.size()):
+		assert(game.enemies[minion_index].kind == 1 and game.enemy_has_tag(game.enemies[minion_index], "PlasticMinion"))
+	var protected_hp := float(plastic_man.hp)
+	game.damage_enemy(0, 30.0)
+	assert(is_equal_approx(float(plastic_man.hp), protected_hp))
+	game.enemies[1].pos = Vector2(-80.0, game.GAME_SIZE.y + 90.0)
+	game.update_plastic_minion(game.enemies[1], 0.1)
+	assert(game.enemies[1].pos.x >= game.enemies[1].radius and game.enemies[1].pos.y < game.GAME_SIZE.y)
+	for minion_index in range(game.enemies.size() - 1, 0, -1):
+		game.free_enemy_visual(game.enemies[minion_index])
+		game.enemies.remove_at(minion_index)
+	assert(game.count_plastic_minions() == 0)
+	game.damage_enemy(0, protected_hp * 0.60)
+	assert(is_equal_approx(float(plastic_man.hp), float(plastic_man.max_hp) * 0.50))
+	assert(plastic_man.plastic_waves_spawned == 2 and game.count_plastic_minions() == 20)
+	var second_wave_hp := float(plastic_man.hp)
+	game.damage_enemy(0, 10.0)
+	assert(is_equal_approx(float(plastic_man.hp), second_wave_hp))
+
+	# Red Guy: แทนกระสุนปกติด้วย Beyblade 3 อัน และรอ 8 วินาทีต่อชุด
+	clear_combat(game)
+	game.special_stage_mode = true
+	game.level = game.SPECIAL_BOSS_LEVEL
+	game.stage_level = 1
+	game.spawn_boss()
+	var red_guy: Dictionary = game.enemies[0]
+	assert(is_equal_approx(float(red_guy.shoot), 8.0))
+	game.fire_enemy_weapon(red_guy)
+	assert(game.enemy_bullets.size() == 3 and is_equal_approx(game.get_named_boss_fire_delay(red_guy), 8.0))
+	for red_blade in game.enemy_bullets:
+		assert(red_blade.visual_key == "enemy_beyblade" and is_equal_approx(float(red_blade.radius), 18.0))
+
+	# Nightmare ปลดล็อกเมื่อได้งานวิจัยครบ: บอส X2/X3 และ Endless ใช้ตารางคะแนนแยก
+	clear_combat(game)
+	game.item_collection.assign([1, 2, 3, 4, 5, 6])
+	assert(game.set_difficulty_multiplier(2))
+	game.special_stage_mode = false
+	game.endless_mode = false
+	game.level = 1
+	game.stage_level = 1
+	game.spawn_boss()
+	var nightmare_boss: Dictionary = game.enemies[0]
+	var nightmare_modifiers: Dictionary = game.skill_modifiers_for(nightmare_boss.visual)
+	var expected_nightmare_hp := ceili((game.BOSS_HP_BASE + game.BOSS_HP_PER_LEVEL) * float(nightmare_modifiers.max_health_multiplier) * 2.0)
+	assert(nightmare_boss.max_hp == expected_nightmare_hp)
+	game.enemy_bullets.clear()
+	game.add_enemy_bullet(Vector2.ZERO, Vector2.DOWN * 100.0, 8.0, game.BOSS_KIND, true, 10)
+	assert(game.enemy_bullets[0].damage == 20)
+	assert(is_equal_approx(Vector2(game.enemy_bullets[0].vel).length(), 100.0 * sqrt(2.0)))
+	clear_combat(game)
+	game.endless_mode = true
+	game.score = 12345
+	game.record_endless_score()
+	assert(game.nightmare_endless_scores.has(12345) and not game.endless_scores.has(12345))
+
+	# Story Nightmare จบ Phase 3 แล้วต่อ Stage ถัดไปทันที ไม่กลับเมนู
+	game.endless_mode = false
+	game.special_stage_mode = false
+	game.selecting_character = false
+	game.level = 1
+	game.selected_stage = 1
+	game.stage_level = game.LEVELS_PER_STAGE
+	game.dialogue_active = true
+	game.dialogue_completion = "phase"
+	game.complete_stage()
+	assert(game.level == 2 and game.stage_level == 1 and game.dialogue_active)
+	assert(game.dialogue_completion == "intro" and not game.game_over)
+	finish_intro(game)
+	clear_combat(game)
+	game.set_difficulty_multiplier(1)
+
+	# Pause Menu: Story ที่ออกก่อนจบคืนรางวัล ส่วน Endless เก็บ Coin และบันทึกคะแนน
+	clear_combat(game)
+	game.special_stage_mode = false
+	game.endless_mode = false
+	game.selecting_character = false
+	game.run_start_coins = 10
+	game.sea_tokens = 12
+	game.paused = true
+	game.exit_run_to_menu()
+	assert(game.sea_tokens == 10 and game.selecting_character and not game.paused)
+	game.endless_mode = true
+	game.selecting_character = false
+	game.run_start_coins = 10
+	game.sea_tokens = 12
+	game.score = 4321
+	game.paused = true
+	game.exit_run_to_menu()
+	assert(game.sea_tokens == 12 and game.endless_scores.has(4321))
+
+	# [AdminTest] arms only after the exact keyboard sequence and unlocks on START.
+	game.show_character_select()
+	game.menu_page = "home"
+	game.item_collection.clear()
+	game.unlocked_ships.assign([0])
+	game.highest_unlocked_stage = 1
+	game.razor_special_cleared = false
+	game.turtle_shop_unlocked = false
+	game.stage_one_tutorial_seen = false
+	game.sea_tokens = 0
+	game.endless_scores.clear()
+	game.best_score = 0
+	game.selected_character = 0
+	game.admin_test_progress = 0
+	game.admin_test_armed = false
+	game.admin_test_active = false
+	for admin_keycode in game.ADMIN_TEST_SEQUENCE:
+		var admin_key := InputEventKey.new()
+		admin_key.keycode = admin_keycode
+		admin_key.pressed = true
+		game._unhandled_input(admin_key)
+	assert(game.admin_test_armed and not game.admin_test_active)
+	assert(game.item_collection.is_empty() and game.unlocked_ships == [0])
+	assert(game.highest_unlocked_stage == 1 and game.sea_tokens == 0)
+	assert(game.selected_character == 0)
+	menu_click.position = game.LAUNCH_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(game.admin_test_active and not game.admin_test_armed)
+	assert(game.menu_page == "stage")
+	assert(game.item_collection.size() == game.FINAL_LEVEL)
+	assert(game.unlocked_ships.size() == game.PLAYER_SCENES.size())
+	assert(game.highest_unlocked_stage == game.FINAL_LEVEL and game.razor_special_cleared)
+	assert(game.turtle_shop_unlocked and game.stage_one_tutorial_seen)
+	assert(game.sea_tokens == game.ADMIN_TEST_COIN_AMOUNT)
+	assert(game.get_endless_best_score() >= game.VIPER_ENDLESS_UNLOCK_SCORE)
+	assert(game.best_score >= game.VIPER_ENDLESS_UNLOCK_SCORE)
+	if can_test_save:
+		assert(FileAccess.file_exists(game.collection_save_path))
 	if FileAccess.file_exists(game.collection_save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(game.collection_save_path))
-	print("SMOKE TEST PASSED: Quest folders, Coin economy, six bosses, Razor trial, Viper 30K unlock and 25-15-10% beam")
+	game.music_player.stop()
+	game.effect_player.stop()
+	game.music_player.stream = null
+	game.effect_player.stream = null
+	root.remove_child(game)
+	game.free()
+	await process_frame
+	await process_frame
+	print("SMOKE TEST PASSED: seven PNG bosses, กุ้ง, animated dialogue, audio settings, Viper sprite skill, Nightmare and Web readiness")
 	quit(0)

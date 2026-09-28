@@ -61,6 +61,8 @@ const SHIPS := [
 		"fire_delay": 0.15, "weapon": "heavy_v", "bullet_speed": 600.0,
 		"v_angle": 0.24, "v_damage": 1.5, "v_radius": 12.6,
 		"special": "viper_beam", "special_label": "BOSS MELTER 50%", "special_cooldown": 12.0,
+		"special_texture": "res://assets/sprites/Viper_Skill.png",
+		"special_texture_size": Vector2(132.0, 920.0),
 		"special_duration": 3.0, "special_interval": 1.0, "beam_width": 100.0,
 		"special_damage": 8.0, "special_boss_percentages": [0.25, 0.15, 0.10]
 	}

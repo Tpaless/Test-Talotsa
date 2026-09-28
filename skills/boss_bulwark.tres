@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://dyeaj3040rvej"]
 
-[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bvyni80k5cu2m" path="res://scripts/skill_definition.gd" id="1_skill"]
 
 [resource]
 script = ExtResource("1_skill")
-display_name = "Bulwark"
-description = "บอสระดับ 1: เกราะหนา เพิ่ม HP สูงสุด 50%"
+display_name = "Thomas Frenzy"
+description = "โทมัส: ยิงรัวเมื่อ HP 50% และหมุนระเบิดกระสุนรูปบวกทุก 2 วินาทีเมื่อ HP 10%"
 max_health_multiplier = 1.5

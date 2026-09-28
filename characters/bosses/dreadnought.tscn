@@ -1,8 +1,0 @@
-[gd_scene load_steps=3 format=3 uid="uid://bpo18mpyggaig"]
-
-[ext_resource type="Texture2D" uid="uid://ckokwkx0fr06v" path="res://assets/sprites/boss_dreadnought.svg" id="1_texture"]
-[ext_resource type="Script" path="res://scripts/combatant_visual.gd" id="2_visual"]
-
-[node name="Dreadnought" type="Sprite2D" unique_id=1674802119]
-texture = ExtResource("1_texture")
-script = ExtResource("2_visual")

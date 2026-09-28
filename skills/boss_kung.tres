@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SkillDefinition" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+display_name = "พลังแห่งมันกุ้ง"
+description = "กุ้ง: ปล่อย Wave กระสุนฟันปลา 5 วินาที และ Phase 3 พุ่งจากมุมบนเข้าหาตำแหน่งล่าสุดของ Player"
+max_health_multiplier = 1.5

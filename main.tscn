@@ -9,6 +9,10 @@
 [node name="SpaceShooter" type="Node2D" unique_id=1850571674]
 script = ExtResource("1_game")
 
+[node name="MusicPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="EffectPlayer" type="AudioStreamPlayer" parent="."]
+
 [node name="ParallaxBackground" type="Node2D" parent="." unique_id=2126955808]
 z_index = -100
 script = ExtResource("4_background")

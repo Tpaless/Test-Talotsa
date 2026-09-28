@@ -1,11 +1,9 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://cipabm5kvoile"]
 
-[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bvyni80k5cu2m" path="res://scripts/skill_definition.gd" id="1_skill"]
 
 [resource]
 script = ExtResource("1_skill")
-display_name = "Overdrive"
-description = "บอสระดับ 5: HP สูงขึ้น 70% กระสุนเสริม 4 นัด และยิงถี่ขึ้น"
-fire_interval_multiplier = 0.7
+display_name = "Plastic Army"
+description = "Plastic Man: เรียกลูกสมุนสามเวฟ โดยเปลี่ยนชนิดลูกสมุนตาม Phase"
 max_health_multiplier = 1.7
-extra_projectiles = 4

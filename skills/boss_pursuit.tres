@@ -1,11 +1,9 @@
-[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillDefinition" format=3 uid="uid://h586k074plwm"]
 
-[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://bvyni80k5cu2m" path="res://scripts/skill_definition.gd" id="1_skill"]
 
 [resource]
 script = ExtResource("1_skill")
-display_name = "Pursuit"
-description = "บอสระดับ 3: เกราะหนา กระสุนเสริม 2 นัด และยิงถี่ขึ้น"
-fire_interval_multiplier = 0.85
+display_name = "Se-Na Laser"
+description = "เสนาหอย: เลเซอร์ X ทุก 10% และรวมร่างปล่อยลำแสงหมุนเมื่อ HP 30%"
 max_health_multiplier = 1.5
-extra_projectiles = 2
