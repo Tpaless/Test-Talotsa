@@ -1,6 +1,6 @@
 extends Node2D
 
-const SCREEN_SIZE := Vector2(960.0, 540.0)
+const SCREEN_SIZE := Vector2(540.0, 960.0)
 
 # HOW TO ADD A LAYER
 # 1. Copy one complete { ... } block below.
@@ -65,7 +65,8 @@ func reload_layers() -> void:
 
 func _process(delta: float) -> void:
 	for layer_data in active_layers:
-		layer_data.offset = fmod(layer_data.offset + layer_data.speed * delta, SCREEN_SIZE.y)
+		var tile_height: float = SCREEN_SIZE.x * layer_data.texture.get_height() / layer_data.texture.get_width()
+		layer_data.offset = fmod(layer_data.offset + layer_data.speed * delta, tile_height)
 	queue_redraw()
 
 
@@ -75,6 +76,9 @@ func _draw() -> void:
 	for layer_data in active_layers:
 		var y_offset: float = layer_data.offset
 		var tint := Color(1.0, 1.0, 1.0, layer_data.opacity)
-		# Each texture is drawn twice so vertical scrolling loops continuously.
-		draw_texture_rect(layer_data.texture, Rect2(0.0, y_offset - SCREEN_SIZE.y, SCREEN_SIZE.x, SCREEN_SIZE.y), false, tint)
-		draw_texture_rect(layer_data.texture, Rect2(0.0, y_offset, SCREEN_SIZE.x, SCREEN_SIZE.y), false, tint)
+		if layer_data.layer == 1:
+			draw_texture_rect(layer_data.texture, Rect2(Vector2.ZERO, SCREEN_SIZE), false, tint)
+			continue
+		var tile_height: float = SCREEN_SIZE.x * layer_data.texture.get_height() / layer_data.texture.get_width()
+		for tile_index in range(-1, ceili(SCREEN_SIZE.y / tile_height) + 1):
+			draw_texture_rect(layer_data.texture, Rect2(0.0, y_offset + tile_index * tile_height, SCREEN_SIZE.x, tile_height), false, tint)

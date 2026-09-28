@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://daknm362usy80"
-path="res://.godot/imported/player_titan.svg-763bec518ec1603948a8c202de0cd26f.ctex"
+uid="uid://b0bk42rrr0jwd"
+path="res://.godot/imported/bullet_wide.svg-4974caf1e620764ab5dca829d44269d0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/player_titan.svg"
-dest_files=["res://.godot/imported/player_titan.svg-763bec518ec1603948a8c202de0cd26f.ctex"]
+source_file="res://assets/sprites/bullet_wide.svg"
+dest_files=["res://.godot/imported/bullet_wide.svg-4974caf1e620764ab5dca829d44269d0.ctex"]
 
 [params]
 

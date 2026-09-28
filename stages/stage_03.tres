@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StageConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/stage_config.gd" id="1_stage"]
+
+[resource]
+script = ExtResource("1_stage")
+stage_id = "stage_03"
+display_name = "Stage 3 - Abyssal Gate"
+difficulty_label = "EXPERT"
+enemy_health_multiplier = 1.75
+enemy_speed_multiplier = 1.2
+spawn_interval_multiplier = 0.7
+boss_score_requirement = 6000
+boss_max_health = 180
+boss_move_speed = 110.0
+boss_fire_interval = 0.45
+boss_score_reward = 10000
+clear_token_reward = 280
+score_per_bonus_token = 200

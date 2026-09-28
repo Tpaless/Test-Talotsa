@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SkillDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_definition.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+display_name = "Rapid Fire"
+description = "ลดระยะเวลาระหว่างการยิงเหลือ 65%"
+fire_interval_multiplier = 0.65

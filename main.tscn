@@ -1,25 +1,33 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://dyxgiwbf4d714"]
 
-[ext_resource path="res://scripts/space_shooter.gd" type="Script" id="1_game"]
-[ext_resource path="res://characters/player/player.tscn" type="PackedScene" id="2_player"]
-[ext_resource path="res://scripts/hud.gd" type="Script" id="3_hud"]
-[ext_resource path="res://scripts/parallax_background.gd" type="Script" id="4_background"]
+[ext_resource type="Script" uid="uid://n0hgxaqq6e2w" path="res://scripts/space_shooter.gd" id="1_game"]
+[ext_resource type="PackedScene" path="res://characters/player/player.tscn" id="2_player"]
+[ext_resource type="Script" uid="uid://bduffw4vynu3s" path="res://scripts/hud.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://qam3hxx8su5r" path="res://scripts/parallax_background.gd" id="4_background"]
+[ext_resource type="PackedScene" path="res://ui/dialogue_overlay.tscn" id="5_dialogue"]
 
-[node name="SpaceShooter" type="Node2D"]
+[node name="SpaceShooter" type="Node2D" unique_id=1850571674]
 script = ExtResource("1_game")
 
-[node name="ParallaxBackground" type="Node2D" parent="."]
+[node name="ParallaxBackground" type="Node2D" parent="." unique_id=2126955808]
 z_index = -100
 script = ExtResource("4_background")
 
-[node name="CharacterLayer" type="Node2D" parent="."]
+[node name="CharacterLayer" type="Node2D" parent="." unique_id=2134196467]
 
-[node name="Player" parent="CharacterLayer" instance=ExtResource("2_player")]
-position = Vector2(480, 458)
+[node name="Player" parent="CharacterLayer" unique_id=750428653 instance=ExtResource("2_player")]
+position = Vector2(270, 878)
+script = null
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=268721383]
 layer = 10
 
-[node name="Renderer" type="Node2D" parent="HUD"]
+[node name="Renderer" type="Node2D" parent="HUD" unique_id=1112629772]
 script = ExtResource("3_hud")
 game_path = NodePath("../..")
+
+[node name="DialogueLayer" type="CanvasLayer" parent="." unique_id=1209888784]
+layer = 20
+
+[node name="DialogueOverlay" parent="DialogueLayer" unique_id=1249457791 instance=ExtResource("5_dialogue")]
+visible = false

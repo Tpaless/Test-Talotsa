@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StageConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/stage_config.gd" id="1_stage"]
+
+[resource]
+script = ExtResource("1_stage")
+stage_id = "stage_01"
+display_name = "Stage 1 - Outer Reef"
+difficulty_label = "NORMAL"
+enemy_health_multiplier = 1.0
+enemy_speed_multiplier = 1.0
+spawn_interval_multiplier = 1.0
+boss_score_requirement = 2500
+boss_max_health = 80
+boss_move_speed = 85.0
+boss_fire_interval = 0.72
+boss_score_reward = 5000
+clear_token_reward = 100
+score_per_bonus_token = 250

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StageConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/stage_config.gd" id="1_stage"]
+
+[resource]
+script = ExtResource("1_stage")
+stage_id = "stage_02"
+display_name = "Stage 2 - Moonlit Trench"
+difficulty_label = "HARD"
+enemy_health_multiplier = 1.35
+enemy_speed_multiplier = 1.1
+spawn_interval_multiplier = 0.85
+boss_score_requirement = 4000
+boss_max_health = 120
+boss_move_speed = 95.0
+boss_fire_interval = 0.58
+boss_score_reward = 7000
+clear_token_reward = 180
+score_per_bonus_token = 225

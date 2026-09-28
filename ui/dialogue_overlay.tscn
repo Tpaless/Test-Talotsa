@@ -1,0 +1,109 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/dialogue_overlay.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player_ship.png" id="2_portrait"]
+[ext_resource type="FontFile" path="res://assets/fonts/NotoSansThai.ttf" id="3_thai_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.03, 0.06, 0.16, 0.98)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.29, 0.88, 1, 0.9)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[node name="DialogueOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.01, 0.015, 0.06, 0.68)
+
+[node name="Panel" type="Panel" parent="."]
+offset_left = 24.0
+offset_top = 590.0
+offset_right = 516.0
+offset_bottom = 922.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="AccentBar" type="ColorRect" parent="Panel"]
+offset_left = 22.0
+offset_top = 24.0
+offset_right = 28.0
+offset_bottom = 76.0
+mouse_filter = 2
+color = Color(0.396, 0.937, 1, 1)
+
+[node name="Portrait" type="TextureRect" parent="Panel"]
+offset_left = 30.0
+offset_top = 88.0
+offset_right = 146.0
+offset_bottom = 220.0
+mouse_filter = 2
+texture = ExtResource("2_portrait")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Speaker" type="Label" parent="Panel"]
+offset_left = 48.0
+offset_top = 25.0
+offset_right = 450.0
+offset_bottom = 70.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.396, 0.937, 1, 1)
+theme_override_fonts/font = ExtResource("3_thai_font")
+theme_override_font_sizes/font_size = 24
+text = "ผู้พูด"
+
+[node name="Body" type="Label" parent="Panel"]
+offset_left = 162.0
+offset_top = 82.0
+offset_right = 460.0
+offset_bottom = 238.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.91, 0.97, 1, 1)
+theme_override_fonts/font = ExtResource("3_thai_font")
+theme_override_font_sizes/font_size = 21
+text = "ข้อความบทสนทนา"
+autowrap_mode = 3
+
+[node name="Counter" type="Label" parent="Panel"]
+offset_left = 28.0
+offset_top = 265.0
+offset_right = 110.0
+offset_bottom = 301.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.68, 0.78, 0.9, 1)
+theme_override_fonts/font = ExtResource("3_thai_font")
+theme_override_font_sizes/font_size = 16
+text = "1 / 2"
+
+[node name="NextHint" type="Label" parent="Panel"]
+offset_left = 115.0
+offset_top = 264.0
+offset_right = 460.0
+offset_bottom = 304.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.43, 1)
+theme_override_fonts/font = ExtResource("3_thai_font")
+theme_override_font_sizes/font_size = 16
+text = "แตะ / คลิก เพื่ออ่านข้อความถัดไป"
+horizontal_alignment = 2

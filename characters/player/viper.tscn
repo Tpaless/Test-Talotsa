@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://assets/sprites/player_viper.png" type="Texture2D" id="1_texture"]
+[ext_resource type="Script" path="res://scripts/combatant_visual.gd" id="2_visual"]
+
+[node name="Viper" type="Sprite2D"]
+scale = Vector2(0.075, 0.075)
+texture = ExtResource("1_texture")
+script = ExtResource("2_visual")
