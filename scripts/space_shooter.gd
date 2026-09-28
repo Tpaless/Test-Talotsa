@@ -3,6 +3,7 @@ extends Node2D
 const GAME_SIZE := Vector2(540.0, 960.0)
 const PLAYER_RADIUS := 18.0
 const BOSS_KIND := 3
+const ENEMY_SIZE_MULTIPLIER := 1.5
 # จำนวนด่านและคะแนนที่ต้องถึงเพื่อเรียกบอส: ด่าน 1-6 ใช้ 1-6 เท่าของค่านี้
 const FINAL_LEVEL := 6
 const LEVEL_SCORE_STEP := 5000
@@ -91,6 +92,9 @@ const SETTINGS_SLIDERS := [
 	Rect2(82.0, 466.0, 376.0, 42.0),
 	Rect2(82.0, 612.0, 376.0, 42.0)
 ]
+const CLEAR_USER_DATA_BUTTON := Rect2(82.0, 720.0, 376.0, 60.0)
+const CLEAR_DATA_CANCEL_BUTTON := Rect2(74.0, 570.0, 180.0, 64.0)
+const CLEAR_DATA_CONFIRM_BUTTON := Rect2(286.0, 570.0, 180.0, 64.0)
 const MENU_BACK_BUTTON := Rect2(452.0, 24.0, 64.0, 64.0)
 const SHIP_PREV_BUTTON := Rect2(30.0, 286.0, 62.0, 62.0)
 const SHIP_NEXT_BUTTON := Rect2(448.0, 286.0, 62.0, 62.0)
@@ -246,6 +250,7 @@ var music_volume := 0.78
 var effect_volume := 0.86
 var current_music_key := ""
 var settings_drag_index := -1
+var clear_data_confirmation_visible := false
 
 var bullets: Array = []
 var enemy_bullets: Array = []
@@ -363,6 +368,42 @@ func save_item_collection() -> void:
 			"music_volume": music_volume,
 			"effect_volume": effect_volume
 		}))
+
+
+func clear_user_data() -> bool:
+	var save_removed := true
+	if FileAccess.file_exists(collection_save_path):
+		var absolute_save_path := collection_save_path
+		if collection_save_path.begins_with("user://") or collection_save_path.begins_with("res://"):
+			absolute_save_path = ProjectSettings.globalize_path(collection_save_path)
+		save_removed = DirAccess.remove_absolute(absolute_save_path) == OK
+	item_collection.clear()
+	sea_tokens = 0
+	turtle_shop_unlocked = true
+	unlocked_ships.assign(DEFAULT_UNLOCKED_SHIPS)
+	highest_unlocked_stage = 1
+	razor_special_cleared = false
+	special_stage_mode = false
+	stage_one_tutorial_seen = false
+	tutorial_visible = false
+	endless_scores.clear()
+	nightmare_endless_scores.clear()
+	difficulty_multiplier = 1
+	selected_character = 0
+	selected_stage = 1
+	score = 0
+	best_score = 0
+	admin_test_progress = 0
+	admin_test_armed = false
+	admin_test_active = false
+	master_volume = 0.90
+	music_volume = 0.78
+	effect_volume = 0.86
+	settings_drag_index = -1
+	clear_data_confirmation_visible = false
+	apply_audio_levels()
+	queue_redraw()
+	return save_removed
 
 
 func audio_linear_to_db(value: float) -> float:
@@ -631,6 +672,7 @@ func show_character_select() -> void:
 	endless_bosses_defeated = 0
 	menu_page = "home"
 	purchase_overlay_visible = false
+	clear_data_confirmation_visible = false
 	quest_open_stage = 0
 	stage_popup_progress = 0.0
 	special_stage_mode = false
@@ -852,7 +894,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE) and quest_open_stage > 0:
 					open_quest_source()
 			elif menu_page == "settings":
-				if event.keycode == KEY_ESCAPE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+				if clear_data_confirmation_visible:
+					if event.keycode == KEY_ESCAPE:
+						clear_data_confirmation_visible = false
+					elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+						clear_user_data()
+				elif event.keycode == KEY_ESCAPE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 					menu_page = "home"
 			elif event.keycode == KEY_ESCAPE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE:
 				menu_page = "home"
@@ -890,6 +937,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func handle_menu_press(position: Vector2) -> void:
 	var adjusted_position := position
+	if clear_data_confirmation_visible:
+		if MENU_BACK_BUTTON.has_point(adjusted_position) or CLEAR_DATA_CANCEL_BUTTON.has_point(adjusted_position):
+			clear_data_confirmation_visible = false
+		elif CLEAR_DATA_CONFIRM_BUTTON.has_point(adjusted_position):
+			clear_user_data()
+		queue_redraw()
+		return
 	if purchase_overlay_visible:
 		if PURCHASE_CANCEL_BUTTON.has_point(adjusted_position):
 			purchase_overlay_visible = false
@@ -953,14 +1007,20 @@ func handle_menu_press(position: Vector2) -> void:
 						quest_open_stage = stage
 						break
 		elif menu_page == "settings":
-			for setting_index in range(SETTINGS_SLIDERS.size()):
-				if SETTINGS_SLIDERS[setting_index].grow(18.0).has_point(adjusted_position):
-					set_audio_setting_from_position(setting_index, adjusted_position.x)
-					break
+			if CLEAR_USER_DATA_BUTTON.has_point(adjusted_position):
+				clear_data_confirmation_visible = true
+			else:
+				for setting_index in range(SETTINGS_SLIDERS.size()):
+					if SETTINGS_SLIDERS[setting_index].grow(18.0).has_point(adjusted_position):
+						set_audio_setting_from_position(setting_index, adjusted_position.x)
+						break
 	queue_redraw()
 
 
 func handle_settings_drag(event: InputEvent) -> void:
+	if clear_data_confirmation_visible:
+		settings_drag_index = -1
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			for setting_index in range(SETTINGS_SLIDERS.size()):
@@ -1449,6 +1509,7 @@ func spawn_enemy() -> void:
 		hp = 5
 		worth = 420
 		speed *= 0.62
+	radius *= ENEMY_SIZE_MULTIPLIER
 
 	var spawn_position := Vector2(rng.randf_range(radius + 15.0, GAME_SIZE.x - radius - 15.0), -radius - 8.0)
 	var enemy_visual: Sprite2D = ENEMY_SCENES[kind].instantiate()
@@ -2192,7 +2253,7 @@ func spawn_plastic_minion_wave(kind: int) -> void:
 
 
 func spawn_plastic_minion(kind: int, x: float, slot: int = 0) -> void:
-	var radius: float = float([17.0, 20.0, 27.0][kind])
+	var radius: float = float([17.0, 20.0, 27.0][kind]) * ENEMY_SIZE_MULTIPLIER
 	var hp: int = int([1, 2, 5][kind])
 	var worth: int = int([100, 180, 420][kind])
 	var spawn_position := Vector2(clampf(x, radius + 8.0, GAME_SIZE.x - radius - 8.0), -radius - 12.0)

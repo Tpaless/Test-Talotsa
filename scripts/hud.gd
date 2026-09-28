@@ -108,7 +108,7 @@ func draw_home_menu() -> void:
 		draw_string(title_font, difficulty_rect.position + Vector2(0.0, 25.0), difficulty_labels[difficulty_index] if available else "LOCKED", HORIZONTAL_ALIGNMENT_CENTER, difficulty_rect.size.x, 11, Color.WHITE if available else Color("718995"))
 	draw_rounded_panel(game.SETTINGS_BUTTON, Color("07304f"), Color("7fffff"), 15, 2)
 	if settings_texture != null:
-		draw_texture_rect(settings_texture, game.SETTINGS_BUTTON.grow(-10.0), false, Color("d8ffff"))
+		draw_texture_rect(settings_texture, game.SETTINGS_BUTTON.grow(-10.0), false, Color.WHITE)
 	if game.admin_test_armed or game.admin_test_active:
 		draw_rounded_panel(Rect2(105.0, 180.0, 330.0, 34.0), Color("4f174f"), Color("ff8df0"), 10, 2)
 		var admin_label := "[AdminTest] PRESS START" if game.admin_test_armed else "[AdminTest] ALL UNLOCKED"
@@ -152,8 +152,8 @@ func draw_home_menu() -> void:
 	var unlock_detail: String = str(ship.role) if unlocked else str(game.get_selected_ship_purchase_status())
 	draw_string(body_font, Vector2(78.0, 696.0), unlock_detail, HORIZONTAL_ALIGNMENT_CENTER, 384.0, 11, Color("d9ffff") if unlocked else Color("fff07a"))
 
-	draw_design_button(game.HOME_SCOREBOARD_BUTTON, "SCORE BOARD", "ENDLESS NIGHTMARE X%d" % game.difficulty_multiplier if game.difficulty_multiplier > 1 else "ENDLESS MODE", false, true, chest_texture)
-	draw_design_button(game.HOME_COLLECTION_BUTTON, "QUEST", "%d / %d ITEMS" % [game.item_collection.size(), game.FINAL_LEVEL], false, true)
+	draw_design_button(game.HOME_SCOREBOARD_BUTTON, "SCORE BOARD", "ENDLESS NIGHTMARE X%d" % game.difficulty_multiplier if game.difficulty_multiplier > 1 else "ENDLESS MODE", false, true)
+	draw_design_button(game.HOME_COLLECTION_BUTTON, "QUEST", "%d / %d ITEMS" % [game.item_collection.size(), game.FINAL_LEVEL], false, true, chest_texture)
 	var razor_trial: bool = game.is_razor_special_stage_available()
 	var launch_detail := "UNLOCK RAZOR" if razor_trial else ("6 STAGES • ONE RUN" if game.difficulty_multiplier > 1 else "CHOOSE STAGE")
 	draw_design_button(game.LAUNCH_BUTTON, "TRIAL" if razor_trial else "START", launch_detail, true, unlocked or razor_trial)
@@ -223,7 +223,7 @@ func draw_readable_text(font: Font, position: Vector2, text: String, alignment: 
 
 func draw_coin(center: Vector2, radius: float) -> void:
 	if coin_texture != null:
-		draw_texture_rect(coin_texture, Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0), false, Color("ffd53d"))
+		draw_texture_rect(coin_texture, Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0), false, Color.WHITE)
 		return
 	draw_circle(center, radius, Color("ffbd18"))
 	draw_arc(center, radius - 3.0, 0.0, TAU, 32, Color("fff075"), 3.0)
@@ -260,7 +260,7 @@ func draw_design_button(rect: Rect2, label: String, detail: String, vertical: bo
 	else:
 		var text_inset := 24.0
 		if icon != null:
-			draw_texture_rect(icon, Rect2(rect.position + Vector2(16.0, 15.0), Vector2(56.0, 56.0)), false, Color("fff09a") if enabled else Color("78909c"))
+			draw_texture_rect(icon, Rect2(rect.position + Vector2(16.0, 15.0), Vector2(56.0, 56.0)), false, Color.WHITE if enabled else Color(1.0, 1.0, 1.0, 0.42))
 			text_inset = 82.0
 		draw_menu_gradient_text(title_font, rect.position + Vector2(text_inset, 48.0), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - text_inset - 14.0, 27 if icon != null else 29, enabled)
 		draw_string(body_font, rect.position + Vector2(text_inset + 2.0, 70.0), detail, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - text_inset - 16.0, 9 if icon != null else 10, Color("d8ffff") if enabled else Color("78909c"))
@@ -272,7 +272,7 @@ func draw_settings() -> void:
 	draw_rounded_panel(Rect2(24.0, 74.0, 492.0, 812.0), Color(0.015, 0.22, 0.40, 0.97), Color("7fffff"), 26, 5)
 	draw_menu_back()
 	if settings_texture != null:
-		draw_texture_rect(settings_texture, Rect2(54.0, 102.0, 62.0, 62.0), false, Color("d8ffff"))
+		draw_texture_rect(settings_texture, Rect2(54.0, 102.0, 62.0, 62.0), false, Color.WHITE)
 	draw_menu_gradient_text(title_font, Vector2(126.0, 148.0), "SETTINGS", HORIZONTAL_ALIGNMENT_LEFT, 300.0, 32)
 	draw_readable_text(story_font, Vector2(54.0, 210.0), "แตะหรือลากแถบเพื่อปรับระดับเสียง", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 17, Color("d9fbff"))
 	var labels := ["MASTER", "MUSIC", "EFFECT"]
@@ -289,7 +289,23 @@ func draw_settings() -> void:
 		draw_circle(knob, 16.0, Color("fff09a"))
 		draw_arc(knob, 16.0, 0.0, TAU, 30, Color("ffffff"), 3.0)
 		draw_string(title_font, Vector2(slider.end.x - 76.0, slider.position.y - 30.0), "%d%%" % roundi(value * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, 76.0, 18, Color("fff09a"))
-	draw_readable_text(story_font, Vector2(54.0, 760.0), "ค่าระดับเสียงจะบันทึกอัตโนมัติและใช้ร่วมกันทั้ง PC / Mobile / Web", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 14, Color("d9fbff"))
+	draw_rounded_panel(game.CLEAR_USER_DATA_BUTTON, Color("6b2031"), Color("ff9aa8"), 18, 3)
+	draw_menu_gradient_text(title_font, game.CLEAR_USER_DATA_BUTTON.position + Vector2(0.0, 38.0), "CLEAR USER DATA", HORIZONTAL_ALIGNMENT_CENTER, game.CLEAR_USER_DATA_BUTTON.size.x, 20)
+	draw_readable_text(story_font, Vector2(54.0, 824.0), "ลบ Coin / ตัวละคร / Stage / Quest / Score และคืนค่าเสียงเริ่มต้น", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 13, Color("ffd7dc"))
+	if game.clear_data_confirmation_visible:
+		draw_clear_data_confirmation()
+
+
+func draw_clear_data_confirmation() -> void:
+	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.0, 0.02, 0.08, 0.80))
+	draw_rounded_panel(Rect2(48.0, 300.0, 444.0, 370.0), Color("3d1730"), Color("ff9aa8"), 26, 5)
+	draw_menu_gradient_text(title_font, Vector2(68.0, 362.0), "CLEAR ALL DATA?", HORIZONTAL_ALIGNMENT_CENTER, 404.0, 29)
+	draw_readable_text(story_font, Vector2(78.0, 430.0), "ข้อมูลความคืบหน้า Coin ตัวละคร Quest และ Score ทั้งหมดจะถูกลบถาวร", HORIZONTAL_ALIGNMENT_CENTER, 384.0, 17, Color("ffe7ea"))
+	draw_readable_text(story_font, Vector2(78.0, 490.0), "กู้คืนไม่ได้ กรุณายืนยันอีกครั้ง", HORIZONTAL_ALIGNMENT_CENTER, 384.0, 15, Color("ffb8c2"))
+	draw_rounded_panel(game.CLEAR_DATA_CANCEL_BUTTON, Color("15516c"), Color("7fffff"), 15, 3)
+	draw_menu_gradient_text(title_font, game.CLEAR_DATA_CANCEL_BUTTON.position + Vector2(0.0, 43.0), "CANCEL", HORIZONTAL_ALIGNMENT_CENTER, game.CLEAR_DATA_CANCEL_BUTTON.size.x, 18)
+	draw_rounded_panel(game.CLEAR_DATA_CONFIRM_BUTTON, Color("9b263f"), Color("ff9aa8"), 15, 3)
+	draw_menu_gradient_text(title_font, game.CLEAR_DATA_CONFIRM_BUTTON.position + Vector2(0.0, 43.0), "DELETE", HORIZONTAL_ALIGNMENT_CENTER, game.CLEAR_DATA_CONFIRM_BUTTON.size.x, 18)
 
 
 func draw_purchase_confirmation() -> void:

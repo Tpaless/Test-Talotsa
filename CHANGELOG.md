@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Enlarged every non-boss enemy (including Plastic Man minions) by 50% while leaving boss sizes unchanged.
+- Moved the white chest menu icon from Score Board to Quest and changed Asset Menu icon modulation to white.
+- Added a confirmed Clear User Data action in Settings to remove local progress, unlocks, scores, coins, quests, and saved audio levels.
 - ให้เพลงประจำบอสเริ่มเล่นตั้งแต่เข้า Stage และเล่นต่อเนื่องผ่านช่วงเก็บเกจ บทสนทนา และ Boss Fight ทั้ง Stage
 - ลดขนาดวงเลือกตัวละคร ย้าย Nightmare X2/X3 ไว้เหนือวง เปลี่ยน Story เป็น Normal และใช้ไอคอน Coin/Chest/Settings จาก `assets/assest_For_Menu`
 - เพิ่มหน้า Settings ที่แตะหรือลากปรับ Master/Music/Effect ได้ พร้อมบันทึกค่าเสียงและจับคู่เพลง Menu, Endless และเพลงบอสตามชื่อไฟล์

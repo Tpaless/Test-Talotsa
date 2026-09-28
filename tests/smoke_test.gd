@@ -52,6 +52,12 @@ func _run() -> void:
 	menu_click.position = Vector2(game.SETTINGS_SLIDERS[0].position.x + game.SETTINGS_SLIDERS[0].size.x * 0.5, game.SETTINGS_SLIDERS[0].get_center().y)
 	game._unhandled_input(menu_click)
 	assert(is_equal_approx(game.master_volume, 0.5))
+	menu_click.position = game.CLEAR_USER_DATA_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(game.clear_data_confirmation_visible)
+	menu_click.position = game.CLEAR_DATA_CANCEL_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(not game.clear_data_confirmation_visible)
 	menu_click.position = game.MENU_BACK_BUTTON.get_center()
 	game._unhandled_input(menu_click)
 	assert(game.menu_page == "home")
@@ -126,6 +132,9 @@ func _run() -> void:
 	finish_intro(game)
 	game.spawn_enemy()
 	await process_frame
+	var scaled_enemy: Dictionary = game.enemies[-1]
+	var normal_enemy_radii := [17.0, 20.0, 27.0]
+	assert(is_equal_approx(float(scaled_enemy.radius), normal_enemy_radii[int(scaled_enemy.kind)] * game.ENEMY_SIZE_MULTIPLIER))
 	var background = game.get_node("ParallaxBackground")
 	assert(not game.selecting_character)
 	assert(not game.boss_active and game.get_music_key() == "boss_1")
@@ -975,6 +984,7 @@ func _run() -> void:
 	assert(game.count_plastic_minions() == 20 and plastic_man.plastic_wave_active)
 	for minion_index in range(1, game.enemies.size()):
 		assert(game.enemies[minion_index].kind == 1 and game.enemy_has_tag(game.enemies[minion_index], "PlasticMinion"))
+		assert(is_equal_approx(float(game.enemies[minion_index].radius), 20.0 * game.ENEMY_SIZE_MULTIPLIER))
 	var protected_hp := float(plastic_man.hp)
 	game.damage_enemy(0, 30.0)
 	assert(is_equal_approx(float(plastic_man.hp), protected_hp))
@@ -1101,8 +1111,13 @@ func _run() -> void:
 	assert(game.best_score >= game.VIPER_ENDLESS_UNLOCK_SCORE)
 	if can_test_save:
 		assert(FileAccess.file_exists(game.collection_save_path))
-	if FileAccess.file_exists(game.collection_save_path):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(game.collection_save_path))
+	assert(game.clear_user_data())
+	assert(game.item_collection.is_empty() and game.unlocked_ships == [0])
+	assert(game.sea_tokens == 0 and game.highest_unlocked_stage == 1)
+	assert(not game.razor_special_cleared and game.endless_scores.is_empty() and game.nightmare_endless_scores.is_empty())
+	assert(game.difficulty_multiplier == 1 and game.selected_character == 0 and game.selected_stage == 1)
+	assert(game.best_score == 0 and is_equal_approx(game.master_volume, 0.90))
+	assert(not FileAccess.file_exists(game.collection_save_path))
 	game.music_player.stop()
 	game.effect_player.stop()
 	game.music_player.stream = null
