@@ -422,7 +422,9 @@ func get_music_key() -> String:
 		return ""
 	if endless_mode:
 		return "endless"
-	if boss_active and level in [1, 3, 4, 5, 6, 7]:
+	# เพลงประจำบอสคือเพลงประจำ Stage จึงเล่นตั้งแต่ช่วงเก็บเกจ ผ่านบทสนทนา
+	# และต่อเนื่องจนจบ Stage ไม่ได้เริ่มเฉพาะตอนบอสปรากฏ
+	if level in [1, 3, 4, 5, 6, 7]:
 		return "boss_%d" % level
 	return ""
 

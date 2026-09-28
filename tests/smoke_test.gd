@@ -128,6 +128,10 @@ func _run() -> void:
 	await process_frame
 	var background = game.get_node("ParallaxBackground")
 	assert(not game.selecting_character)
+	assert(not game.boss_active and game.get_music_key() == "boss_1")
+	game.dialogue_active = true
+	assert(game.get_music_key() == "boss_1")
+	game.dialogue_active = false
 	assert(game.max_player_health == 100)
 	assert(game.player_sprite is CombatantVisual)
 	assert(game.player_sprite.get_skill_names().is_empty())
