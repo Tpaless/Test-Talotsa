@@ -90,7 +90,7 @@ func _run() -> void:
 	assert(not game.selecting_character)
 	assert(game.level == 3 and game.score == 0)
 	assert(game.dialogue_overlay.visible)
-	assert(game.dialogue_lines[0].speaker == "กุ้ง")
+	assert(game.dialogue_lines[0].speaker == "จอร์นนี่")
 	assert(bool(game.dialogue_overlay.call("is_typing")))
 	game.dialogue_overlay.call("finish_typing")
 	assert(not bool(game.dialogue_overlay.call("is_typing")))
@@ -179,8 +179,11 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").coin_texture != null)
 	assert(game.get_node("HUD/Renderer").chest_texture != null)
 	assert(game.get_node("HUD/Renderer").settings_texture != null)
-	assert(game.get_node("HUD/Renderer").version_label == "Ver 0.9.0")
-	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer"))
+	assert(game.get_node("HUD/Renderer").version_label == "Ver 0.9.9")
+	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer") and game.has_node("ExplosionPlayer"))
+	assert(game.EXPLOSION_EFFECT.resource_path == "res://Sound/Explosion.wav")
+	assert(game.explosion_player.stream == game.EXPLOSION_EFFECT and game.explosion_player.max_polyphony == 32)
+	assert(game.player_sprite.scale == Vector2(0.3, 0.3))
 	assert(game.music_player.playback_type == AudioServer.PLAYBACK_TYPE_STREAM)
 	assert(game.TARGET_FPS == 60 and game.MAX_MOBILE_PARTICLES < game.MAX_DESKTOP_PARTICLES)
 	var audio_click := InputEventMouseButton.new()
@@ -192,6 +195,7 @@ func _run() -> void:
 	game.set_audio_setting(1, 0.52, false)
 	game.set_audio_setting(2, 0.41, false)
 	assert(is_equal_approx(game.master_volume, 0.64) and is_equal_approx(game.music_volume, 0.52) and is_equal_approx(game.effect_volume, 0.41))
+	assert(is_equal_approx(game.explosion_player.volume_db, game.effect_player.volume_db))
 	assert(FileAccess.file_exists("res://export_presets.cfg"))
 	var export_presets_text := FileAccess.get_file_as_string("res://export_presets.cfg")
 	assert("name=\"Windows Desktop\"" in export_presets_text and "name=\"Android APK\"" not in export_presets_text)
@@ -264,7 +268,7 @@ func _run() -> void:
 	game.quest_open_stage = 0
 	var stage_six_mentions_key := false
 	for final_line in game.DIALOGUE_CONFIG.get_lines(6, 3):
-		stage_six_mentions_key = stage_six_mentions_key or "กุญแจ" in str(final_line.text)
+		stage_six_mentions_key = stage_six_mentions_key or "ชิ้นส่วนสุดท้าย" in str(final_line.text)
 	assert(stage_six_mentions_key)
 	assert(game.DIALOGUE_CONFIG.get_lines(1, 1)[1].speaker == "จอร์นนี่")
 	assert(game.enemies.size() == 1)
@@ -437,40 +441,44 @@ func _run() -> void:
 			game.resolve_collisions()
 			assert(game.player_health == health_before_boss_contact - 20)
 			assert(game.boss_active and game.enemies.size() == 1)
-		# โทมัสเปลี่ยนรูปแบบยิงตาม HP และยิงรัวเมื่อเหลือ 50%
+		# Thomas heals once at 50% HP and fires five semi-homing shots.
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = floori(game.enemies[0].max_hp * game.BOSS_PHASE_2_RATIO) + 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
 		game.resolve_collisions()
 		assert(game.enemies[0].boss_phase == 2)
 		assert(game.pickups.size() == potion_count_before_boss + 1)
-		assert(game.enemies[0].special_timer < 0.0)
 		game.fire_enemy_weapon(game.enemies[0])
-		assert(game.enemy_bullets.size() == 5 + expected_extra_shots[expected_level - 1])
+		assert(game.enemy_bullets.size() == 3)
 		game.enemy_bullets.clear()
-		game.enemies[0].hp = floori(game.enemies[0].max_hp * game.BOSS_SPECIAL_RATIO) + 1
+		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.50) + 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
 		game.resolve_collisions()
-		assert(game.enemies[0].boss_phase == 3)
+		assert(game.enemies[0].boss_phase == 3 and game.enemies[0].thomas_skill_used)
+		assert(is_equal_approx(float(game.enemies[0].hp), float(game.enemies[0].max_hp) * 0.75))
 		assert(game.pickups.size() == potion_count_before_boss + 2)
-		game.fire_enemy_weapon(game.enemies[0])
-		assert(game.enemy_bullets.size() == 7 + expected_extra_shots[expected_level - 1])
-		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), 0.50))
+		assert(game.enemy_bullets.size() == 5)
+		for thomas_bullet in game.enemy_bullets:
+			assert(float(thomas_bullet.homing_time) == game.THOMAS_HOMING_TIME)
 		game.enemy_bullets.clear()
-		game.enemies[0].pos = Vector2(270.0, 300.0)
+		game.fire_enemy_weapon(game.enemies[0])
+		assert(game.enemy_bullets.size() == 3)
+		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), 2.625))
+		game.enemy_bullets.clear()
 		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.25) + 1
 		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
 		game.resolve_collisions()
 		assert(game.pickups.size() == potion_count_before_boss + 3)
-		# 10%: กลับกลาง หมุนหนึ่งรอบใน 10 วินาที และปล่อยกระสุนรูปบวก 12 นัดทุก 2 วินาที
-		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.10) + 1
-		game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
-		game.resolve_collisions()
-		game.enemies[0].ability_timer = 0.0
-		game.update_enemies(0.01)
-		assert(game.enemy_bullets.size() == 12)
-		assert(is_equal_approx(game.enemies[0].ability_timer, 5.0))
-		assert(game.enemies[0].pos.distance_to(Vector2(270.0, 280.0)) < 21.0)
+		assert(game.enemy_bullets.is_empty())
+		game.enemies[0].hp = float(game.enemies[0].max_hp) * 0.20
+		game.damage_enemy(0, 1.0)
+		assert(game.enemy_bullets.is_empty() and game.enemies[0].thomas_skill_used)
+		game.fire_enemy_weapon(game.enemies[0])
+		assert(game.enemy_bullets.size() == 5)
+		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), game.THOMAS_RAPID_FIRE_INTERVAL))
+		for rapid_bullet in game.enemy_bullets:
+			assert(rapid_bullet.damage == 10)
+			assert(is_equal_approx(Vector2(rapid_bullet.vel).length(), game.THOMAS_RAPID_FIRE_SPEED))
 		game.enemy_bullets.clear()
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = 1
@@ -608,6 +616,7 @@ func _run() -> void:
 		game.advance_dialogue()
 	assert(game.game_over and game.victory and game.razor_special_cleared)
 	assert(game.is_ship_unlocked(3) and game.selected_character == 3)
+	assert(game.is_stage_unlocked(7) and not game.is_stage_unlocked(3))
 	game._process(game.SUMMARY_DURATION + 0.1)
 	assert(game.selecting_character and not game.special_stage_mode)
 	menu_click.position = game.HOME_SCOREBOARD_BUTTON.get_center()
@@ -710,9 +719,9 @@ func _run() -> void:
 	assert(game.bullets[0].vel.x > 0.0)
 	game.enemies[0].pos = game.bullets[0].pos
 	game.resolve_collisions()
-	assert(game.enemies[0].hp == 19.0 and game.bullets.size() == 1)
+	assert(game.enemies[0].hp == 18.5 and game.bullets.size() == 1)
 	game.resolve_collisions()
-	assert(game.enemies[0].hp == 19.0)
+	assert(game.enemies[0].hp == 18.5)
 	for target_index in range(9):
 		game.spawn_enemy()
 		game.enemies[-1].pos = game.bullets[0].pos
@@ -720,7 +729,7 @@ func _run() -> void:
 	game.resolve_collisions()
 	assert(game.bullets.is_empty())
 	for enemy in game.enemies:
-		assert(enemy.hp == 19.0)
+		assert(enemy.hp == 18.5)
 	game.update_special_effects(2.01)
 	assert(game.giant_shot_count == 2)
 	game.update_special_effects(2.0)
@@ -741,7 +750,7 @@ func _run() -> void:
 	assert(game.bullets.size() == 1)
 	game.bullets[0].pos = game.enemies[0].pos
 	game.resolve_collisions()
-	assert(is_equal_approx(giant_shot_boss_hp - float(game.enemies[0].hp), float(game.player_stats.special_boss_damage)))
+	assert(is_equal_approx(giant_shot_boss_hp - float(game.enemies[0].hp), float(game.player_stats.special_boss_damage) * float(game.player_stats.damage_multiplier)))
 	game.show_character_select()
 	game.selected_character = 2
 	game.start_selected_game()
@@ -836,6 +845,7 @@ func _run() -> void:
 	assert(game.visual_textures["health_pickup"].resource_path == "res://assets/sprites/pickup_health.png")
 	assert(game.visual_textures.has("viper_beam"))
 	assert(game.visual_textures["viper_beam"].resource_path == "res://assets/sprites/Viper_Skill.png")
+	game.level = 2
 	game.spawn_boss()
 	game.enemies[0].pos = game.player_pos + Vector2(0.0, -280.0)
 	var viper_boss_max_hp: float = game.enemies[0].max_hp
@@ -923,6 +933,13 @@ func _run() -> void:
 	game.update_khram_boss(khram, 0.10)
 	assert(Vector2(khram.pos).distance_to(Vector2(khram.khram_recover_target)) < khram_recover_distance)
 	assert(Vector2(khram.pos).distance_to(khram_miss_position) <= game.KHRAM_RECOVER_SPEED * 0.10 + 0.1)
+	khram.pos = Vector2(100.0, 250.0)
+	khram.khram_recover_target = khram.pos
+	khram.khram_recovering = true
+	game.update_khram_boss(khram, 0.10)
+	var khram_return_position := Vector2(khram.pos)
+	game.update_khram_boss(khram, 0.10)
+	assert(Vector2(khram.pos).distance_to(khram_return_position) <= game.KHRAM_RECOVER_SPEED * 0.10 + 0.1)
 	khram.hp = float(khram.max_hp) * 0.11
 	game.damage_enemy(0, float(khram.max_hp) * 0.02)
 	assert(khram.frenzy_used and is_equal_approx(float(khram.frenzy_timer), game.KHRAM_FRENZY_DURATION))
@@ -1172,6 +1189,9 @@ func _run() -> void:
 		game.free_enemy_visual(game.enemies[minion_index])
 		game.enemies.remove_at(minion_index)
 	plastic_man.hp = float(plastic_man.max_hp) * 0.30
+	game.enemy_bullets.clear()
+	game.fire_enemy_weapon(plastic_man)
+	assert(game.enemy_bullets.size() == 7 and is_equal_approx(game.get_named_boss_fire_delay(plastic_man), 0.5))
 	game.player_pos = Vector2(420.0, 760.0)
 	game.enemy_bullets.clear()
 	var plastic_before_dash := Vector2(plastic_man.pos)
@@ -1183,16 +1203,16 @@ func _run() -> void:
 		game.update_plastic_rapid_fire(plastic_man, 0.5)
 	assert(is_equal_approx(float(plastic_man.plastic_rapid_fire_timer), 0.0) and game.enemy_bullets.size() > 10)
 
-	# Red Guy: แทนกระสุนปกติด้วย Beyblade 3 อัน และรอ 8 วินาทีต่อชุด
+	# Red Guy fires six Beyblades every second.
 	clear_combat(game)
 	game.special_stage_mode = true
 	game.level = game.SPECIAL_BOSS_LEVEL
 	game.stage_level = 1
 	game.spawn_boss()
 	var red_guy: Dictionary = game.enemies[0]
-	assert(is_equal_approx(float(red_guy.shoot), 8.0))
+	assert(is_equal_approx(float(red_guy.shoot), 1.0))
 	game.fire_enemy_weapon(red_guy)
-	assert(game.enemy_bullets.size() == 3 and is_equal_approx(game.get_named_boss_fire_delay(red_guy), 8.0))
+	assert(game.enemy_bullets.size() == 6 and is_equal_approx(game.get_named_boss_fire_delay(red_guy), 1.0))
 	for red_blade in game.enemy_bullets:
 		assert(red_blade.visual_key == "enemy_beyblade" and is_equal_approx(float(red_blade.radius), 18.0))
 
@@ -1254,6 +1274,34 @@ func _run() -> void:
 	game.exit_run_to_menu()
 	assert(game.sea_tokens == 12 and game.endless_scores.has(4321))
 
+	# Stage 6 unlocks a replayable Stage 7 and shows editable credits before the summary.
+	clear_combat(game)
+	game.special_stage_mode = false
+	game.endless_mode = false
+	game.selecting_character = false
+	game.game_over = false
+	game.level = 6
+	game.stage_level = game.LEVELS_PER_STAGE
+	game.dialogue_active = true
+	game.dialogue_completion = "phase"
+	game.complete_stage()
+	assert(game.highest_unlocked_stage == game.STAGE_SELECT_COUNT and game.is_stage_unlocked(7))
+	assert(game.credits_visible and game.credits_screen.visible)
+	game.credits_screen.get_node("ContinueButton").emit_signal("pressed")
+	assert(not game.credits_visible and game.game_over and game.victory)
+	game.show_character_select()
+	game.selected_character = 0
+	menu_click.position = game.LAUNCH_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	game._process(1.0)
+	menu_click.position = game.STAGE_CARDS[6].get_center()
+	game._unhandled_input(menu_click)
+	assert(game.selected_stage == 7)
+	menu_click.position = game.STAGE_START_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(game.special_stage_mode and game.level == 7 and game.dialogue_active)
+	game.show_character_select()
+
 	# [AdminTest] arms only after the exact keyboard sequence and unlocks on START.
 	game.show_character_select()
 	game.menu_page = "home"
@@ -1285,7 +1333,7 @@ func _run() -> void:
 	assert(game.menu_page == "stage")
 	assert(game.item_collection.size() == game.FINAL_LEVEL)
 	assert(game.unlocked_ships.size() == game.PLAYER_SCENES.size())
-	assert(game.highest_unlocked_stage == game.FINAL_LEVEL and game.razor_special_cleared)
+	assert(game.highest_unlocked_stage == game.STAGE_SELECT_COUNT and game.razor_special_cleared)
 	assert(game.turtle_shop_unlocked and game.stage_one_tutorial_seen)
 	assert(game.sea_tokens == game.ADMIN_TEST_COIN_AMOUNT)
 	assert(game.get_endless_best_score() >= game.VIPER_ENDLESS_UNLOCK_SCORE)

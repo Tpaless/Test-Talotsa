@@ -24,7 +24,7 @@ const SHIPS := [
 		"name": "JOHNY SAPARROW", "role": "SPECIAL HOMING", "weapon_label": "2 STRAIGHT SHOTS",
 		"base_health": 100, "health_multiplier": 1.0, "speed": 350.0,
 		"fire_delay": 0.25, "weapon": "twin", "bullet_speed": 510.0,
-		"homing_turn_speed": 1100.0,
+		"homing_turn_speed": 1100.0, "damage_multiplier": 1.5,
 		"special": "giant_shot", "special_label": "GIANT SHOT",
 		"special_cooldown": 10.0, "special_duration": 6.0,
 		"special_interval": 2.0, "special_pierce": 10,

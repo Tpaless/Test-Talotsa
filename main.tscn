@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://bduffw4vynu3s" path="res://scripts/hud.gd" id="3_hud"]
 [ext_resource type="Script" uid="uid://qam3hxx8su5r" path="res://scripts/parallax_background.gd" id="4_background"]
 [ext_resource type="PackedScene" path="res://ui/dialogue_overlay.tscn" id="5_dialogue"]
+[ext_resource type="PackedScene" path="res://ui/credits.tscn" id="6_credits"]
 
 [node name="SpaceShooter" type="Node2D" unique_id=1850571674]
 script = ExtResource("1_game")
@@ -13,6 +14,9 @@ script = ExtResource("1_game")
 playback_type = 1
 
 [node name="EffectPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="ExplosionPlayer" type="AudioStreamPlayer" parent="."]
+max_polyphony = 32
 
 [node name="ParallaxBackground" type="Node2D" parent="." unique_id=2126955808]
 z_index = -100
@@ -35,4 +39,10 @@ game_path = NodePath("../..")
 layer = 20
 
 [node name="DialogueOverlay" parent="DialogueLayer" unique_id=1249457791 instance=ExtResource("5_dialogue")]
+visible = false
+
+[node name="CreditsLayer" type="CanvasLayer" parent="."]
+layer = 30
+
+[node name="CreditsScreen" parent="CreditsLayer" instance=ExtResource("6_credits")]
 visible = false

@@ -29,7 +29,7 @@ var version_label := ""
 
 func _ready() -> void:
 	game = get_node(game_path)
-	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "0.9.0"))
+	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "0.9.9"))
 	title_font = ThemeDB.fallback_font
 	body_font = ThemeDB.fallback_font
 	story_font = ThemeDB.fallback_font
@@ -363,7 +363,7 @@ func draw_stage_select() -> void:
 	draw_menu_back()
 	draw_menu_gradient_text(title_font, Vector2(40.0, 128.0), "SELECT STAGE", HORIZONTAL_ALIGNMENT_LEFT, 330.0, 29)
 	draw_string(body_font, Vector2(40.0, 156.0), "Choose a mission, then press START", HORIZONTAL_ALIGNMENT_LEFT, 400.0, 13, Color("b8fbff"))
-	for i in range(game.FINAL_LEVEL):
+	for i in range(game.STAGE_SELECT_COUNT):
 		var card: Rect2 = game.STAGE_CARDS[i]
 		var unlocked: bool = game.is_stage_unlocked(i + 1)
 		var selected: bool = unlocked and i + 1 == game.selected_stage
@@ -374,7 +374,7 @@ func draw_stage_select() -> void:
 		draw_menu_gradient_text(title_font, card.position + Vector2(18.0, 59.0), "%d" % (i + 1) if unlocked else "X", HORIZONTAL_ALIGNMENT_CENTER, 48.0, 22, unlocked)
 		var stage_heading := "STAGE %d  •  %s" % [i + 1, game.get_story_boss_name(i + 1)] if unlocked else "STAGE %d" % (i + 1)
 		draw_string(story_font, card.position + Vector2(82.0, 38.0), stage_heading, HORIZONTAL_ALIGNMENT_LEFT, 260.0, 19, Color.WHITE if unlocked else Color("647080"))
-		var detail := "%s  •  3 PHASES" % game.get_story_stage_area(i + 1) if unlocked else "LOCKED  •  CLEAR STAGE %d" % i
+		var detail := ("%s  •  BOSS TRIAL" if i + 1 == game.SPECIAL_BOSS_LEVEL else "%s  •  3 PHASES") % game.get_story_stage_area(i + 1) if unlocked else "LOCKED  •  CLEAR STAGE %d" % i
 		draw_string(story_font, card.position + Vector2(82.0, 70.0), detail, HORIZONTAL_ALIGNMENT_LEFT, 350.0, 13, Color("8eeaff") if unlocked else Color("536070"))
 		if selected:
 			draw_menu_gradient_text(title_font, card.position + Vector2(340.0, 61.0), "READY", HORIZONTAL_ALIGNMENT_CENTER, 96.0, 15)

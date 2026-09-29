@@ -4,6 +4,6 @@
 [ext_resource type="Script" path="res://scripts/combatant_visual.gd" id="2_visual"]
 
 [node name="Swift" type="Sprite2D"]
-scale = Vector2(0.075, 0.075)
+scale = Vector2(0.3, 0.3)
 texture = ExtResource("1_texture")
 script = ExtResource("2_visual")

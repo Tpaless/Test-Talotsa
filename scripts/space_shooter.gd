@@ -21,6 +21,7 @@ const COINS_PER_BOSS := 1
 const SEA_TOKENS_PER_CLEAR := 3 # compatibility: Story มีบอส 3 Phase จึงได้รวม 3 Coin
 const VIPER_ENDLESS_UNLOCK_SCORE := 30000
 const SPECIAL_BOSS_LEVEL := 7
+const STAGE_SELECT_COUNT := SPECIAL_BOSS_LEVEL
 const SPECIAL_STAGE_SCORE_TARGET := 5000
 # บอสแต่ละด่านมี 3 Phase ตามเนื้อเรื่อง โดยแต่ละ Phase ใช้เกจคะแนนและการต่อสู้หนึ่งรอบ
 const BOSS_PHASE_2_RATIO := 0.75
@@ -35,6 +36,11 @@ const POTION_HEAL_RATIO := 0.25
 # ลดอัตรายิงของโทมัส 60%: interval ใหม่ = interval เดิม / 0.40
 const THOMAS_FIRE_RATE_SCALE := 0.40
 const THOMAS_FIRE_DELAY_MULTIPLIER := 1.0 / THOMAS_FIRE_RATE_SCALE
+const THOMAS_HEAL_RATIO := 0.25
+const THOMAS_HOMING_TIME := 0.65
+const THOMAS_RAPID_FIRE_INTERVAL := 0.75
+const THOMAS_RAPID_FIRE_SPEED := 330.0
+const THOMAS_RAPID_FIRE_DAMAGE_RATIO := 0.50
 const KHRAM_SWAY_SPEED := 2.6
 const KHRAM_DASH_SPEED := 520.0
 const KHRAM_DASH_DURATION := 0.72
@@ -91,6 +97,7 @@ const MUSIC_TRACKS := {
 	"boss_7": preload("res://Sound/Boss_red_boy.mp3")
 }
 const START_EFFECT: AudioStream = preload("res://Sound/Start_Button.wav")
+const EXPLOSION_EFFECT: AudioStream = preload("res://Sound/Explosion.wav")
 const GAME_OVER_EFFECT: AudioStream = preload("res://Sound/Game_Over.wav")
 const PAUSE_BUTTON := Rect2(448.0, 16.0, 76.0, 48.0)
 const PAUSE_RESUME_BUTTON := Rect2(120.0, 382.0, 300.0, 68.0)
@@ -104,12 +111,13 @@ const DIFFICULTY_BUTTONS := [
 	Rect2(362.0, 136.0, 154.0, 38.0)
 ]
 const STAGE_CARDS := [
-	Rect2(40.0, 166.0, 460.0, 88.0),
-	Rect2(40.0, 264.0, 460.0, 88.0),
-	Rect2(40.0, 362.0, 460.0, 88.0),
-	Rect2(40.0, 460.0, 460.0, 88.0),
-	Rect2(40.0, 558.0, 460.0, 88.0),
-	Rect2(40.0, 656.0, 460.0, 88.0)
+	Rect2(40.0, 146.0, 460.0, 80.0),
+	Rect2(40.0, 236.0, 460.0, 80.0),
+	Rect2(40.0, 326.0, 460.0, 80.0),
+	Rect2(40.0, 416.0, 460.0, 80.0),
+	Rect2(40.0, 506.0, 460.0, 80.0),
+	Rect2(40.0, 596.0, 460.0, 80.0),
+	Rect2(40.0, 686.0, 460.0, 80.0)
 ]
 const SHOP_SHIP_CARDS := [
 	Rect2(24.0, 166.0, 408.0, 100.0),
@@ -190,8 +198,10 @@ const COLLECTION_SAVE_PATH := "user://item_collection.json"
 @onready var character_layer: Node2D = $CharacterLayer
 @onready var player_sprite: Sprite2D = $CharacterLayer/Player
 @onready var dialogue_overlay: Control = $DialogueLayer/DialogueOverlay
+@onready var credits_screen: Control = $CreditsLayer/CreditsScreen
 @onready var music_player: AudioStreamPlayer = $MusicPlayer
 @onready var effect_player: AudioStreamPlayer = $EffectPlayer
+@onready var explosion_player: AudioStreamPlayer = $ExplosionPlayer
 
 var player_pos := Vector2(270.0, 878.0)
 var player_health := 4
@@ -216,6 +226,7 @@ var laser_hit_ids: Dictionary = {}
 var visual_textures: Dictionary = {}
 var selected_character := 0
 var selected_stage := 1
+var credits_visible := false
 var menu_page := "home"
 var purchase_overlay_visible := false
 var quest_open_stage := 0
@@ -322,10 +333,12 @@ func _ready() -> void:
 	Engine.max_fps = TARGET_FPS
 	rng.randomize()
 	load_item_collection()
+	explosion_player.stream = EXPLOSION_EFFECT
 	apply_audio_levels()
 	if not music_player.finished.is_connected(_on_music_finished):
 		music_player.finished.connect(_on_music_finished)
 	show_character_select()
+	credits_screen.get_node("ContinueButton").pressed.connect(_on_credits_continue)
 	update_audio_track(true)
 
 
@@ -351,7 +364,7 @@ func load_item_collection() -> void:
 				item_collection.append(stage)
 		sea_tokens = maxi(0, int(stored.get("sea_tokens", 0)))
 		turtle_shop_unlocked = true
-		highest_unlocked_stage = clampi(int(stored.get("highest_unlocked_stage", 1)), 1, FINAL_LEVEL)
+		highest_unlocked_stage = clampi(int(stored.get("highest_unlocked_stage", 1)), 1, STAGE_SELECT_COUNT)
 		stage_one_tutorial_seen = bool(stored.get("stage_one_tutorial_seen", false))
 		razor_special_cleared = bool(stored.get("razor_special_cleared", false))
 		endless_scores.clear()
@@ -386,7 +399,7 @@ func load_item_collection() -> void:
 		if get_endless_best_score() >= VIPER_ENDLESS_UNLOCK_SCORE:
 			unlocked_ships.append(4)
 	for cleared_stage in item_collection:
-		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(cleared_stage + 1, FINAL_LEVEL))
+		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(cleared_stage + 1, STAGE_SELECT_COUNT))
 	selected_stage = clampi(selected_stage, 1, highest_unlocked_stage)
 
 
@@ -455,6 +468,8 @@ func apply_audio_levels() -> void:
 		music_player.volume_db = audio_linear_to_db(master_volume * music_volume)
 	if is_instance_valid(effect_player):
 		effect_player.volume_db = audio_linear_to_db(master_volume * effect_volume)
+	if is_instance_valid(explosion_player):
+		explosion_player.volume_db = audio_linear_to_db(master_volume * effect_volume)
 
 
 func set_audio_setting(index: int, value: float, persist: bool = true) -> void:
@@ -494,6 +509,12 @@ func play_effect(stream: AudioStream) -> void:
 	effect_player.stream = stream
 	apply_audio_levels()
 	effect_player.play()
+
+
+func play_enemy_hit_effect() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	explosion_player.play()
 
 
 func is_audio_activation_event(event: InputEvent) -> bool:
@@ -607,7 +628,18 @@ func get_adjacent_visible_ship(ship_index: int, direction: int) -> int:
 
 
 func is_stage_unlocked(stage: int) -> bool:
-	return stage >= 1 and stage <= highest_unlocked_stage
+	if stage == SPECIAL_BOSS_LEVEL:
+		return razor_special_cleared or item_collection.has(FINAL_LEVEL) or highest_unlocked_stage >= SPECIAL_BOSS_LEVEL
+	return stage >= 1 and stage <= mini(highest_unlocked_stage, FINAL_LEVEL)
+
+
+func get_adjacent_unlocked_stage(direction: int) -> int:
+	var available: Array[int] = []
+	for stage in range(1, STAGE_SELECT_COUNT + 1):
+		if is_stage_unlocked(stage):
+			available.append(stage)
+	var current := available.find(selected_stage)
+	return available[wrapi(current + direction, 0, available.size())] if current >= 0 else available[0]
 
 
 func get_ship_display_name(ship_index: int) -> String:
@@ -744,6 +776,8 @@ func show_character_select() -> void:
 	quest_open_stage = 0
 	stage_popup_progress = 0.0
 	special_stage_mode = false
+	credits_visible = false
+	credits_screen.hide()
 	character_layer.position = Vector2.ZERO
 	player_sprite.visible = false
 	queue_redraw()
@@ -753,10 +787,10 @@ func start_selected_game(start_endless: bool = false) -> void:
 	if not is_ship_unlocked(selected_character):
 		open_selected_ship_purchase()
 		return
-	special_stage_mode = false
 	endless_mode = start_endless
 	if difficulty_multiplier > 1 and not start_endless:
 		selected_stage = 1
+	special_stage_mode = not start_endless and selected_stage == SPECIAL_BOSS_LEVEL
 	endless_bosses_defeated = 0
 	run_start_coins = sea_tokens
 	selecting_character = false
@@ -940,10 +974,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				if event.keycode == KEY_ESCAPE:
 					menu_page = "home"
 				if event.keycode == KEY_A or event.keycode == KEY_LEFT:
-					selected_stage = wrapi(selected_stage - 2, 0, highest_unlocked_stage) + 1
+					selected_stage = get_adjacent_unlocked_stage(-1)
 				elif event.keycode == KEY_D or event.keycode == KEY_RIGHT:
-					selected_stage = wrapi(selected_stage, 0, highest_unlocked_stage) + 1
-				elif event.keycode >= KEY_1 and event.keycode < KEY_1 + FINAL_LEVEL:
+					selected_stage = get_adjacent_unlocked_stage(1)
+				elif event.keycode >= KEY_1 and event.keycode < KEY_1 + STAGE_SELECT_COUNT:
 					var requested_stage: int = event.keycode - KEY_1 + 1
 					if is_stage_unlocked(requested_stage):
 						selected_stage = requested_stage
@@ -1161,8 +1195,8 @@ func activate_admin_test_unlocks() -> void:
 	unlocked_ships.clear()
 	for ship_index in range(PLAYER_SCENES.size()):
 		unlocked_ships.append(ship_index)
-	highest_unlocked_stage = FINAL_LEVEL
-	selected_stage = clampi(selected_stage, 1, FINAL_LEVEL)
+	highest_unlocked_stage = STAGE_SELECT_COUNT
+	selected_stage = clampi(selected_stage, 1, STAGE_SELECT_COUNT)
 	razor_special_cleared = true
 	turtle_shop_unlocked = true
 	stage_one_tutorial_seen = true
@@ -1391,7 +1425,7 @@ func _process(delta: float) -> void:
 		stage_popup_progress = move_toward(stage_popup_progress, 1.0 if menu_page == "stage" else 0.0, delta * 5.5)
 	if not selecting_character and not paused and not game_over and not dialogue_active:
 		update_game(delta)
-	elif game_over:
+	elif game_over and not credits_visible:
 		summary_timer -= delta
 		if summary_timer <= 0.0:
 			if is_story_nightmare():
@@ -1557,7 +1591,7 @@ func fire_player_weapon() -> void:
 
 func spawn_player_bullet(offset: Vector2, velocity: Vector2, visual_key: String, damage: float = 1.0, radius: float = 5.0, boss_multiplier: float = 1.0, homing: bool = false) -> void:
 	bullets.append({"pos": player_pos + offset, "vel": velocity, "visual_key": visual_key,
-		"damage": damage, "radius": radius, "boss_damage_multiplier": boss_multiplier,
+		"damage": damage * float(player_stats.get("damage_multiplier", 1.0)), "radius": radius, "boss_damage_multiplier": boss_multiplier,
 		"homing": homing, "life": 4.0})
 
 
@@ -1661,6 +1695,7 @@ func spawn_boss() -> void:
 		"special_timer": -1.0,
 		"special_cooldown": get_boss_special_cooldown(),
 		"ability_timer": 0.8,
+		"thomas_skill_used": false,
 		"ability_cycle": 0.0,
 		"dash_timer": 0.0,
 		"dash_queue": 0,
@@ -1710,7 +1745,7 @@ func spawn_boss() -> void:
 		"plastic_mimic_velocity": Vector2.ZERO,
 		"plastic_mimic_dash_timer": 0.0,
 		"idle_texture": boss_visual.texture,
-		"shoot": (8.0 if boss_stage == 7 else 1.0 * modifiers.fire_interval_multiplier) / float(difficulty_multiplier),
+		"shoot": (1.0 if boss_stage == 7 else 1.0 * modifiers.fire_interval_multiplier) / float(difficulty_multiplier),
 		"fire_interval_multiplier": modifiers.fire_interval_multiplier,
 		"extra_projectiles": modifiers.extra_projectiles,
 		"visual": boss_visual
@@ -1747,6 +1782,11 @@ func update_bullets(delta: float) -> void:
 	for i in range(enemy_bullets.size() - 1, -1, -1):
 		enemy_bullets[i].life = float(enemy_bullets[i].get("life", 8.0)) - delta
 		enemy_bullets[i].rotation = float(enemy_bullets[i].get("rotation", 0.0)) + float(enemy_bullets[i].get("spin_speed", 0.0)) * delta
+		if float(enemy_bullets[i].get("homing_time", 0.0)) > 0.0:
+			var homing_bullet: Dictionary = enemy_bullets[i]
+			var desired_velocity: Vector2 = (player_pos - Vector2(homing_bullet.pos)).normalized() * Vector2(homing_bullet.vel).length()
+			homing_bullet.vel = Vector2(homing_bullet.vel).move_toward(desired_velocity, 500.0 * delta)
+			homing_bullet.homing_time = maxf(0.0, float(homing_bullet.homing_time) - delta)
 		enemy_bullets[i].pos += enemy_bullets[i].vel * delta
 		if enemy_bullets[i].life <= 0.0 or enemy_bullets[i].pos.y > GAME_SIZE.y + 40.0 or enemy_bullets[i].pos.y < -40.0 or enemy_bullets[i].pos.x < -40.0 or enemy_bullets[i].pos.x > GAME_SIZE.x + 40.0:
 			enemy_bullets.remove_at(i)
@@ -1839,8 +1879,9 @@ func activate_special() -> void:
 
 
 func spawn_giant_shot() -> void:
-	var regular_damage := float(player_stats.special_damage)
-	var boss_damage := float(player_stats.get("special_boss_damage", regular_damage))
+	var damage_scale := float(player_stats.get("damage_multiplier", 1.0))
+	var regular_damage := float(player_stats.special_damage) * damage_scale
+	var boss_damage := float(player_stats.get("special_boss_damage", player_stats.special_damage)) * damage_scale
 	var boss_multiplier := boss_damage / regular_damage if regular_damage > 0.0 else 1.0
 	bullets.append({"pos": player_pos + Vector2(0.0, -30.0), "vel": Vector2.UP * float(player_stats.special_bullet_speed),
 		"visual_key": "player_giant", "damage": regular_damage, "radius": float(player_stats.special_radius),
@@ -1930,6 +1971,7 @@ func update_special_effects(delta: float) -> void:
 		if blade.life <= 0.0:
 			beyblades.remove_at(i)
 			continue
+		var previous_blade_pos := Vector2(blade.pos)
 		blade.pos += blade.vel * delta
 		var touched_border: bool = blade.pos.x <= 0.0 or blade.pos.x >= GAME_SIZE.x or blade.pos.y <= 0.0 or blade.pos.y >= GAME_SIZE.y
 		if touched_border:
@@ -1938,9 +1980,9 @@ func update_special_effects(delta: float) -> void:
 			if not aim_blade_at_enemy(blade):
 				blade.vel = -blade.vel
 			blade.hit_timer = float(player_stats.special_hit_interval)
-		if blade.hit_timer <= 0.0 and not blade.to_border:
+		if blade.hit_timer <= 0.0:
 			for enemy_index in range(enemies.size() - 1, -1, -1):
-				if blade.pos.distance_squared_to(enemies[enemy_index].pos) < pow(float(enemies[enemy_index].radius) + 14.0, 2.0):
+				if point_segment_distance(Vector2(enemies[enemy_index].pos), previous_blade_pos, Vector2(blade.pos)) <= float(enemies[enemy_index].radius) + float(blade.visual_size.x) * 0.5:
 					var hit_enemy: Dictionary = enemies[enemy_index]
 					var hit_id: int = hit_enemy.visual.get_instance_id()
 					var was_boss: bool = hit_enemy.kind == BOSS_KIND
@@ -2022,21 +2064,26 @@ func fire_enemy_weapon(enemy: Dictionary) -> void:
 			fire_red_guy_beyblades(enemy)
 			return
 		var angles := [-0.32, 0.0, 0.32]
-		if boss_id == 1 and float(enemy.hp) / float(enemy.max_hp) <= 0.5:
+		var damage_override := -1
+		if boss_id == 1 and float(enemy.hp) / float(enemy.max_hp) < 0.5:
+			angles = [-0.36, -0.18, 0.0, 0.18, 0.36]
+			speed = THOMAS_RAPID_FIRE_SPEED
+			damage_override = maxi(1, ceili(float(enemy_attack_damage(BOSS_KIND)) * THOMAS_RAPID_FIRE_DAMAGE_RATIO))
+		elif boss_id == 6 and float(enemy.hp) / float(enemy.max_hp) < 0.5:
 			angles = [-0.54, -0.36, -0.18, 0.0, 0.18, 0.36, 0.54]
 			speed = 470.0
-		elif enemy.boss_phase == 2:
+		elif boss_id != 1 and enemy.boss_phase == 2:
 			angles = [-0.52, -0.26, 0.0, 0.26, 0.52]
-		elif enemy.boss_phase == 3:
+		elif boss_id != 1 and enemy.boss_phase == 3:
 			angles = [-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6]
 		for angle in angles:
-			add_enemy_bullet(enemy.pos + Vector2(0.0, enemy.radius), aim.rotated(angle) * speed, 7.0, enemy.kind)
+			add_enemy_bullet(enemy.pos + Vector2(0.0, enemy.radius), aim.rotated(angle) * speed, 7.0, enemy.kind, false, damage_override)
 	elif enemy.kind == 2:
 		for angle in [-0.18, 0.0, 0.18]:
 			add_enemy_bullet(enemy.pos + Vector2(0.0, enemy.radius), aim.rotated(angle) * speed, 6.0, enemy.kind)
 	else:
 		add_enemy_bullet(enemy.pos + Vector2(0.0, enemy.radius), aim * speed, 5.0, enemy.kind)
-	# กระสุนเสริมของสกิลใช้ทิศเล็งเดียวกันกับศัตรูและบอส (Red Guy ยิง Beyblade 3 อันเท่านั้น)
+	# กระสุนเสริมของสกิลใช้ทิศเล็งเดียวกันกับศัตรูและบอส
 	for shot_index in range(int(enemy.extra_projectiles)):
 		var ring := int(shot_index / 2) + 1
 		var side := -1.0 if shot_index % 2 == 0 else 1.0
@@ -2080,8 +2127,6 @@ func update_named_boss(enemy: Dictionary, delta: float) -> bool:
 
 func apply_boss_horizontal_lean(enemy: Dictionary, previous_x: float, delta: float) -> void:
 	var boss_id := int(enemy.get("boss_id", 0))
-	if boss_id == 1 and float(enemy.hp) / float(enemy.max_hp) <= 0.10:
-		return
 	if boss_id == 2 and float(enemy.get("dash_timer", 0.0)) > 0.0:
 		return
 	if boss_id == 3 and String(enemy.get("kung_dive_state", "")) in ["dive", "return"]:
@@ -2099,21 +2144,18 @@ func move_boss_sway(enemy: Dictionary, delta: float, target_y: float, sway_speed
 
 
 func update_thomas_boss(enemy: Dictionary, delta: float) -> bool:
-	var health_ratio := float(enemy.hp) / float(enemy.max_hp)
-	if health_ratio > 0.10:
-		move_boss_sway(enemy, delta, 255.0, 1.35 if health_ratio > 0.5 else 2.6, 125.0 if health_ratio > 0.5 else 175.0)
-		enemy.visual.rotation = 0.0
-		return false
-	# 10% สุดท้าย: เข้ากลาง หมุนครบหนึ่งรอบใน 10 วินาที และระเบิดรูปบวกทุก 2 วินาที
-	enemy.pos = enemy.pos.move_toward(Vector2(GAME_SIZE.x * 0.5, 280.0), 310.0 * delta)
-	enemy.ability_cycle = fmod(float(enemy.ability_cycle) + delta, 10.0)
-	enemy.spin_angle = float(enemy.ability_cycle) / 10.0 * TAU
-	enemy.visual.rotation = float(enemy.spin_angle)
-	enemy.ability_timer = float(enemy.ability_timer) - delta
-	if enemy.ability_timer <= 0.0:
-		fire_thomas_cross_burst(enemy)
-		enemy.ability_timer = 2.0 * THOMAS_FIRE_DELAY_MULTIPLIER
-	return true
+	move_boss_sway(enemy, delta, 255.0, 1.35, 125.0)
+	enemy.visual.rotation = 0.0
+	return false
+
+
+func fire_thomas_homing_burst(enemy: Dictionary) -> void:
+	var origin: Vector2 = Vector2(enemy.pos) + Vector2(0.0, float(enemy.radius) * 0.5)
+	var aim := (player_pos - origin).normalized()
+	for angle in [-0.48, -0.24, 0.0, 0.24, 0.48]:
+		add_enemy_bullet(origin, aim.rotated(angle) * 300.0, 8.0, BOSS_KIND, true)
+		enemy_bullets[-1]["homing_time"] = THOMAS_HOMING_TIME
+	spawn_sparks(enemy.pos, Color("8dffb1"), 24, 180.0)
 
 
 func fire_thomas_cross_burst(enemy: Dictionary) -> void:
@@ -2152,7 +2194,9 @@ func update_khram_boss(enemy: Dictionary, delta: float) -> bool:
 			enemy.pos = recover_target
 			enemy.khram_recovering = false
 		return true
-	move_boss_sway(enemy, delta, 250.0, KHRAM_SWAY_SPEED, 190.0)
+	var patrol_x := GAME_SIZE.x * 0.5 + sin(elapsed * KHRAM_SWAY_SPEED + float(enemy.phase)) * 190.0
+	enemy.pos.x = move_toward(float(enemy.pos.x), patrol_x, KHRAM_RECOVER_SPEED * delta)
+	enemy.pos.y = move_toward(float(enemy.pos.y), 250.0, 145.0 * delta)
 	enemy.visual.rotation = 0.0
 	return false
 
@@ -2567,7 +2611,7 @@ func update_plastic_minion(enemy: Dictionary, delta: float) -> void:
 func fire_red_guy_beyblades(enemy: Dictionary) -> void:
 	var origin: Vector2 = enemy.pos + Vector2(0.0, 42.0)
 	var aim: Vector2 = (player_pos - origin).normalized()
-	for angle in [-0.30, 0.0, 0.30]:
+	for angle in [-0.50, -0.30, -0.10, 0.10, 0.30, 0.50]:
 		add_enemy_bullet(origin, aim.rotated(angle) * 185.0, 18.0, BOSS_KIND, true, -1, "enemy_beyblade", 13.0 if angle >= 0.0 else -13.0)
 	spawn_sparks(origin, Color("ff5a67"), 24, 185.0)
 
@@ -2575,8 +2619,7 @@ func fire_red_guy_beyblades(enemy: Dictionary) -> void:
 func get_named_boss_fire_delay(enemy: Dictionary) -> float:
 	match int(enemy.get("boss_id", level)):
 		1:
-			var base_delay := 0.20 if float(enemy.hp) / float(enemy.max_hp) <= 0.5 else 1.05
-			return base_delay * THOMAS_FIRE_DELAY_MULTIPLIER
+			return THOMAS_RAPID_FIRE_INTERVAL if float(enemy.hp) / float(enemy.max_hp) < 0.5 else 1.05 * THOMAS_FIRE_DELAY_MULTIPLIER
 		2:
 			return 1.25
 		3:
@@ -2586,9 +2629,9 @@ func get_named_boss_fire_delay(enemy: Dictionary) -> float:
 		5:
 			return 1.35
 		6:
-			return 2.4
+			return 0.20 * THOMAS_FIRE_DELAY_MULTIPLIER if float(enemy.hp) / float(enemy.max_hp) < 0.5 else 2.4
 		7:
-			return 8.0
+			return 1.0
 	return 1.0
 
 
@@ -2690,7 +2733,7 @@ func resolve_collisions() -> void:
 			var bullet_radius: float = float(bullet.get("radius", 5.0))
 			var collision_radius := float(enemy.radius) + bullet_radius
 			if bullet.pos.distance_squared_to(enemy.pos) < collision_radius * collision_radius:
-				spawn_sparks(bullet.pos, Color("ffd166"), 5, 145.0)
+				spawn_explosion(bullet.pos, Color("ffd166"), 5)
 				if bullet.has("pierce_remaining"):
 					bullet.hit_ids.append(enemy_id)
 					bullet.pierce_remaining -= 1
@@ -2791,6 +2834,7 @@ func damage_enemy(index: int, amount: float) -> void:
 	if index < 0 or index >= enemies.size() or amount <= 0.0:
 		return
 	var enemy: Dictionary = enemies[index]
+	play_enemy_hit_effect()
 	if enemy.kind == BOSS_KIND and int(enemy.get("boss_id", 0)) == 6 and count_plastic_minions() > 0:
 		spawn_sparks(enemy.pos, Color("67e6ff"), 8, 115.0)
 		return
@@ -2811,6 +2855,8 @@ func damage_enemy(index: int, amount: float) -> void:
 	)
 	if starts_plastic_wave:
 		enemy.hp = float(enemy.max_hp) * 0.50
+	if enemy.kind == BOSS_KIND and int(enemy.get("boss_id", 0)) == 1 and not bool(enemy.thomas_skill_used) and previous_health > float(enemy.max_hp) * 0.50 and float(enemy.hp) <= float(enemy.max_hp) * 0.50:
+		enemy.hp = maxf(float(enemy.hp), float(enemy.max_hp) * 0.50)
 	if enemy.kind == BOSS_KIND:
 		for threshold in [0.75, 0.50, 0.25]:
 			if previous_health > float(enemy.max_hp) * threshold and float(enemy.hp) <= float(enemy.max_hp) * threshold:
@@ -2818,14 +2864,22 @@ func damage_enemy(index: int, amount: float) -> void:
 	if enemy.hp <= 0.0:
 		destroy_enemy(index)
 	elif enemy.kind == BOSS_KIND:
-		process_named_boss_health_triggers(enemy, previous_health / float(enemy.max_hp), float(enemy.hp) / float(enemy.max_hp))
 		update_boss_phase(enemy)
+		process_named_boss_health_triggers(enemy, previous_health / float(enemy.max_hp), float(enemy.hp) / float(enemy.max_hp))
 		if starts_plastic_wave:
 			start_plastic_minion_wave(enemy)
 
 
 func process_named_boss_health_triggers(enemy: Dictionary, previous_ratio: float, current_ratio: float) -> void:
 	var boss_id := int(enemy.get("boss_id", 0))
+	if boss_id == 1 and current_ratio <= 0.50 and not bool(enemy.thomas_skill_used):
+		enemy.thomas_skill_used = true
+		enemy.hp = minf(float(enemy.max_hp), float(enemy.hp) + float(enemy.max_hp) * THOMAS_HEAL_RATIO)
+		fire_thomas_homing_burst(enemy)
+	if boss_id == 1 and previous_ratio >= 0.50 and float(enemy.hp) / float(enemy.max_hp) < 0.50:
+		enemy.shoot = minf(float(enemy.shoot), 0.05)
+	if boss_id == 6 and previous_ratio >= 0.50 and current_ratio < 0.50:
+		enemy.shoot = minf(float(enemy.shoot), 0.05)
 	if boss_id == 2:
 		for threshold in [0.8, 0.6, 0.4, 0.2]:
 			if previous_ratio > threshold and current_ratio <= threshold:
@@ -2991,7 +3045,7 @@ func complete_stage() -> void:
 		return
 	if stage_level >= LEVELS_PER_STAGE:
 		collect_boss_item(level)
-		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(level + 1, FINAL_LEVEL))
+		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(level + 1, STAGE_SELECT_COUNT))
 		save_item_collection()
 		if is_story_nightmare() and level < FINAL_LEVEL:
 			level += 1
@@ -3003,7 +3057,10 @@ func complete_stage() -> void:
 			player_health = mini(max_player_health, player_health + ceili(max_player_health * 0.35))
 			start_stage_intro()
 			return
-		finish_game(true)
+		if level == FINAL_LEVEL:
+			show_credits()
+		else:
+			finish_game(true)
 		return
 	stage_level += 1
 	spawn_timer = 1.5
@@ -3044,6 +3101,18 @@ func damage_player(amount: int = 5) -> void:
 	spawn_explosion(player_pos, Color("7df9ff"), 22)
 	if player_health <= 0:
 		finish_game(false)
+
+
+func show_credits() -> void:
+	finish_game(true)
+	credits_visible = true
+	credits_screen.show()
+
+
+func _on_credits_continue() -> void:
+	credits_screen.hide()
+	credits_visible = false
+	summary_timer = SUMMARY_DURATION
 
 
 func finish_game(won: bool) -> void:
@@ -3227,8 +3296,8 @@ func draw_boss_hazard(hazard: Dictionary) -> void:
 			draw_line(warning_start, warning_end, Color(0.72, 0.36, 1.0, 0.18 + (1.0 - warning_ratio) * 0.30), 84.0)
 			draw_line(warning_start, warning_end, Color("c596ff"), 3.0)
 		else:
-			var size := Vector2(390.0, 138.0)
-			var center := Vector2(165.0 if side < 0 else GAME_SIZE.x - 165.0, y)
+			var size := Vector2(GAME_SIZE.x * 0.72, 84.0)
+			var center := Vector2(size.x * 0.5 if side < 0 else GAME_SIZE.x - size.x * 0.5, y)
 			draw_set_transform(shake_offset + center, 0.0 if side < 0 else PI)
 			draw_texture_rect(LENS_TENTACLE_TEXTURE, Rect2(-size * 0.5, size), false)
 			draw_set_transform(shake_offset)

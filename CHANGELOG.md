@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-09-29
+
+- Play `Sound/Explosion.wav` on every enemy hit, including boss shields and special attacks.
+- Double the in-stage size of all five playable turtles.
+- Restore Thomas's rapid fire with reduced damage, projectile count, and speed.
+- Include the Stage 6 credits, updated dialogue, boss skills, and fixes from this release.
+
 ## [0.9.0] - 2026-09-29
 
 - เพิ่ม Windows export preset, จำกัด 60 FPS/จำนวน Particle, ลด resolution ตอน import และลด allocation ใน collision loop เพื่อให้ลื่นขึ้นบนเครื่องสเปกต่ำ
