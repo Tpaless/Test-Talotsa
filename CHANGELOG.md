@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-30
+
+- Reset the Endless boss gauge after each boss and wait five seconds before the next boss can appear.
+- Stack Plastic Man's 20 minions in two compact groups at the screen edges.
+- Unlock Straw Hat Johny after clearing Stage 4 and earning 30,000 Endless points.
+- Start new profiles with zero Coin.
+
 ## [1.0.0] - 2026-09-30
 
 - Update the first parallax background and use the new PNG for the second layer.

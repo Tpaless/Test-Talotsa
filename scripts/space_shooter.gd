@@ -16,10 +16,12 @@ const FINAL_LEVEL := 6
 const LEVEL_SCORE_STEP := 5000
 const LEVELS_PER_STAGE := 3
 const ENDLESS_BOSS_SCORE_STEP := 5000
+const ENDLESS_BOSS_DELAY := 5.0
 const MAX_SCOREBOARD_ENTRIES := 5
 const COINS_PER_BOSS := 1
+const STARTER_COIN := 0
 const SEA_TOKENS_PER_CLEAR := 3 # compatibility: Story มีบอส 3 Phase จึงได้รวม 3 Coin
-const VIPER_ENDLESS_UNLOCK_SCORE := 70000
+const STRAW_HAT_ENDLESS_UNLOCK_SCORE := 30000
 const SPECIAL_BOSS_LEVEL := 7
 const STAGE_SELECT_COUNT := SPECIAL_BOSS_LEVEL
 const SPECIAL_STAGE_SCORE_TARGET := 5000
@@ -231,7 +233,7 @@ var menu_page := "home"
 var purchase_overlay_visible := false
 var quest_open_stage := 0
 var item_collection: Array[int] = []
-var sea_tokens := 0
+var sea_tokens := STARTER_COIN
 var turtle_shop_unlocked := true
 var unlocked_ships: Array[int] = [0]
 var highest_unlocked_stage := 1
@@ -248,6 +250,8 @@ var collection_save_path := COLLECTION_SAVE_PATH
 var stage_level := 1
 var endless_mode := false
 var endless_bosses_defeated := 0
+var endless_boss_gauge_score := 0
+var endless_boss_delay_remaining := 0.0
 var endless_scores: Array[int] = []
 var nightmare_endless_scores: Array[int] = []
 var difficulty_multiplier := 1
@@ -362,7 +366,7 @@ func load_item_collection() -> void:
 			var stage: int = int(entry)
 			if BOSS_REWARDS.has(stage) and not item_collection.has(stage):
 				item_collection.append(stage)
-		sea_tokens = maxi(0, int(stored.get("sea_tokens", 0)))
+		sea_tokens = maxi(0, int(stored.get("sea_tokens", STARTER_COIN)))
 		turtle_shop_unlocked = true
 		highest_unlocked_stage = clampi(int(stored.get("highest_unlocked_stage", 1)), 1, STAGE_SELECT_COUNT)
 		stage_one_tutorial_seen = bool(stored.get("stage_one_tutorial_seen", false))
@@ -386,8 +390,7 @@ func load_item_collection() -> void:
 		master_volume = clampf(float(stored.get("master_volume", master_volume)), 0.0, 1.0)
 		music_volume = clampf(float(stored.get("music_volume", music_volume)), 0.0, 1.0)
 		effect_volume = clampf(float(stored.get("effect_volume", effect_volume)), 0.0, 1.0)
-		# Roster v2: Johny เริ่มต้นหนึ่งตัว, Saparrow/Pichu ซื้อด้วย Coin,
-		# Razor มาจากด่านพิเศษ และ Viper มาจาก Endless 30,000 เท่านั้น
+		# Johny starts alone; Straw Hat requires Stage 4 and 30,000 Endless points.
 		unlocked_ships.assign(DEFAULT_UNLOCKED_SHIPS)
 		var saved_unlocked_ships: Variant = stored.get("unlocked_ships", stored.get("unlocked_turtle_skins", []))
 		for entry in saved_unlocked_ships:
@@ -396,7 +399,7 @@ func load_item_collection() -> void:
 				unlocked_ships.append(ship_index)
 		if razor_special_cleared:
 			unlocked_ships.append(3)
-		if get_endless_best_score() >= VIPER_ENDLESS_UNLOCK_SCORE:
+		if item_collection.has(4) and get_endless_best_score() >= STRAW_HAT_ENDLESS_UNLOCK_SCORE:
 			unlocked_ships.append(4)
 	for cleared_stage in item_collection:
 		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(cleared_stage + 1, STAGE_SELECT_COUNT))
@@ -431,7 +434,7 @@ func clear_user_data() -> bool:
 			absolute_save_path = ProjectSettings.globalize_path(collection_save_path)
 		save_removed = DirAccess.remove_absolute(absolute_save_path) == OK
 	item_collection.clear()
-	sea_tokens = 0
+	sea_tokens = STARTER_COIN
 	turtle_shop_unlocked = true
 	unlocked_ships.assign(DEFAULT_UNLOCKED_SHIPS)
 	highest_unlocked_stage = 1
@@ -683,7 +686,7 @@ func get_selected_ship_purchase_status() -> String:
 		"special_stage":
 			return "DEFEAT THE SPECIAL BOSS TO UNLOCK"
 		"endless_score":
-			return "REACH 30,000 SCORE IN ENDLESS MODE"
+			return "CLEAR STAGE 4 FIRST" if not item_collection.has(4) else "REACH 30,000 IN ENDLESS"
 	if sea_tokens < int(ship_offer.cost):
 		return "NEED %d MORE COIN" % (int(ship_offer.cost) - sea_tokens)
 	return "READY TO BUY WITH COIN"
@@ -721,8 +724,10 @@ func is_razor_special_stage_available() -> bool:
 	return selected_character == 3 and is_ship_visible(3) and not is_ship_unlocked(3) and item_collection.has(1)
 
 
-func unlock_viper_from_endless() -> void:
-	if 4 in unlocked_ships or score < VIPER_ENDLESS_UNLOCK_SCORE or not endless_mode:
+func unlock_straw_hat_if_eligible() -> void:
+	if 4 in unlocked_ships or not item_collection.has(4):
+		return
+	if get_endless_best_score() < STRAW_HAT_ENDLESS_UNLOCK_SCORE and (not endless_mode or score < STRAW_HAT_ENDLESS_UNLOCK_SCORE):
 		return
 	unlocked_ships.append(4)
 	save_item_collection()
@@ -878,6 +883,8 @@ func reset_game() -> void:
 	stage_level = 1
 	roll_stage_music_variant()
 	score = 0
+	endless_boss_gauge_score = 0
+	endless_boss_delay_remaining = 0.0
 	boss_active = false
 	victory = false
 	summary_timer = 0.0
@@ -1201,12 +1208,12 @@ func activate_admin_test_unlocks() -> void:
 	turtle_shop_unlocked = true
 	stage_one_tutorial_seen = true
 	sea_tokens = maxi(sea_tokens, ADMIN_TEST_COIN_AMOUNT)
-	if get_endless_best_score() < VIPER_ENDLESS_UNLOCK_SCORE:
-		endless_scores.append(VIPER_ENDLESS_UNLOCK_SCORE)
+	if get_endless_best_score() < STRAW_HAT_ENDLESS_UNLOCK_SCORE:
+		endless_scores.append(STRAW_HAT_ENDLESS_UNLOCK_SCORE)
 		endless_scores.sort_custom(func(a: int, b: int) -> bool: return a > b)
 		if endless_scores.size() > MAX_SCOREBOARD_ENTRIES:
 			endless_scores.resize(MAX_SCOREBOARD_ENTRIES)
-	best_score = maxi(best_score, VIPER_ENDLESS_UNLOCK_SCORE)
+	best_score = maxi(best_score, STRAW_HAT_ENDLESS_UNLOCK_SCORE)
 	save_item_collection()
 	queue_redraw()
 
@@ -1454,6 +1461,7 @@ func update_game(delta: float) -> void:
 	spawn_timer -= delta
 	invulnerable_timer = maxf(0.0, invulnerable_timer - delta)
 	special_cooldown_timer = maxf(0.0, special_cooldown_timer - delta)
+	endless_boss_delay_remaining = maxf(0.0, endless_boss_delay_remaining - delta)
 	if tutorial_visible:
 		tutorial_timer = maxf(0.0, tutorial_timer - delta)
 		tutorial_visible = tutorial_timer > 0.0
@@ -1542,7 +1550,7 @@ func get_player_move_speed() -> float:
 
 func score_target_for_level() -> int:
 	if endless_mode:
-		return (endless_bosses_defeated + 1) * ENDLESS_BOSS_SCORE_STEP
+		return ENDLESS_BOSS_SCORE_STEP
 	if special_stage_mode:
 		return SPECIAL_STAGE_SCORE_TARGET
 	return stage_level * LEVEL_SCORE_STEP
@@ -1550,16 +1558,24 @@ func score_target_for_level() -> int:
 
 func score_start_for_level() -> int:
 	if endless_mode:
-		return endless_bosses_defeated * ENDLESS_BOSS_SCORE_STEP
+		return 0
 	if special_stage_mode:
 		return 0
 	return (stage_level - 1) * LEVEL_SCORE_STEP
 
 
+func can_spawn_next_boss() -> bool:
+	if game_over or dialogue_active or boss_active:
+		return false
+	if endless_mode:
+		return endless_boss_gauge_score >= ENDLESS_BOSS_SCORE_STEP and endless_boss_delay_remaining <= 0.0
+	return score >= score_target_for_level()
+
+
 func refresh_stage_level() -> void:
 	# Level progression only happens after defeating a boss and finishing its dialogue.
 	stage_level = clampi(stage_level, 1, LEVELS_PER_STAGE)
-	unlock_viper_from_endless()
+	unlock_straw_hat_if_eligible()
 
 
 func fire_player_weapon() -> void:
@@ -2572,14 +2588,12 @@ func spawn_plastic_minion(kind: int, slot: int = 0) -> void:
 	var radius: float = float([17.0, 20.0, 27.0][kind]) * ENEMY_SIZE_MULTIPLIER
 	var hp: int = int([1, 2, 5][kind])
 	var worth: int = int([100, 180, 420][kind])
-	var columns := 4 if radius > 55.0 else 5
-	var column := slot % columns
-	var row := slot / columns
-	var edge := radius + 6.0
-	var spacing_x := (GAME_SIZE.x - edge * 2.0) / float(columns - 1)
-	var home_x := edge + float(column) * spacing_x
-	var target_y := radius + 72.0 + float(row) * (radius * 2.0 + 14.0)
-	var spawn_position := Vector2(home_x, -radius - 12.0 - float(row) * (radius * 2.0 + 14.0))
+	var stack_index := slot % 10
+	var left_stack := slot < 10
+	var edge := radius + 12.0
+	var home_x := edge if left_stack else GAME_SIZE.x - edge
+	var target_y := radius + 98.0 + float(stack_index) * 10.0
+	var spawn_position := Vector2(home_x, -radius - 12.0 - float(stack_index) * 10.0)
 	var visual: Sprite2D = ENEMY_SCENES[kind].instantiate()
 	apply_visual_override(visual, ENEMY_VISUAL_KEYS[kind])
 	fit_sprite_to_box(visual, Vector2(radius * 2.25, radius * 2.25))
@@ -2590,7 +2604,7 @@ func spawn_plastic_minion(kind: int, slot: int = 0) -> void:
 		"hp": hp, "max_hp": hp, "kind": kind, "tags": ["PlasticMinion"], "worth": worth,
 		"phase": rng.randf_range(0.0, TAU), "shoot": rng.randf_range(0.45, 1.0),
 		"plastic_slot": slot, "plastic_home_x": home_x, "target_y": target_y,
-		"plastic_sway": 0.0 if radius > 55.0 else 6.0,
+		"plastic_sway": 0.0,
 		"fire_interval_multiplier": modifiers.fire_interval_multiplier,
 		"extra_projectiles": modifiers.extra_projectiles, "visual": visual})
 
@@ -2788,11 +2802,13 @@ func resolve_collisions() -> void:
 		if pickups[i].pos.distance_squared_to(player_pos) < pickup_radius * pickup_radius:
 			player_health = mini(max_player_health, player_health + ceili(max_player_health * POTION_HEAL_RATIO))
 			score += 75
+			if endless_mode and not boss_active:
+				endless_boss_gauge_score = mini(ENDLESS_BOSS_SCORE_STEP, endless_boss_gauge_score + 75)
 			refresh_stage_level()
 			best_score = maxi(best_score, score)
 			spawn_explosion(pickups[i].pos, Color("65ff9a"), 14)
 			pickups.remove_at(i)
-	if not game_over and not dialogue_active and not boss_active and score >= score_target_for_level():
+	if can_spawn_next_boss():
 		spawn_boss()
 
 
@@ -2904,6 +2920,8 @@ func destroy_enemy(index: int) -> void:
 	var enemy = enemies[index]
 	var was_boss: bool = enemy_has_tag(enemy, "Boss")
 	score += enemy.worth
+	if endless_mode and not boss_active and not was_boss:
+		endless_boss_gauge_score = mini(ENDLESS_BOSS_SCORE_STEP, endless_boss_gauge_score + int(enemy.worth))
 	refresh_stage_level()
 	if was_boss:
 		sea_tokens += COINS_PER_BOSS
@@ -2923,7 +2941,7 @@ func destroy_enemy(index: int) -> void:
 			complete_endless_boss()
 		else:
 			start_boss_dialogue()
-	elif not boss_active and score >= score_target_for_level():
+	elif can_spawn_next_boss():
 		spawn_boss()
 
 
@@ -2938,6 +2956,8 @@ func potion_drop_chance() -> float:
 
 func complete_endless_boss() -> void:
 	endless_bosses_defeated += 1
+	endless_boss_gauge_score = 0
+	endless_boss_delay_remaining = ENDLESS_BOSS_DELAY
 	stage_level = endless_bosses_defeated % LEVELS_PER_STAGE + 1
 	level = clampi(floori(float(endless_bosses_defeated) / float(LEVELS_PER_STAGE)) + 1, 1, FINAL_LEVEL)
 	spawn_timer = 1.25
@@ -3072,6 +3092,8 @@ func collect_boss_item(stage: int) -> void:
 	if BOSS_REWARDS.has(stage) and not item_collection.has(stage):
 		item_collection.append(stage)
 		save_item_collection()
+		if stage == 4:
+			unlock_straw_hat_if_eligible()
 
 
 func get_story_boss_name(stage: int = level) -> String:

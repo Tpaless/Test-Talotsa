@@ -35,6 +35,7 @@ func _run() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(game.collection_save_path))
 	game.item_collection.clear()
 	game.sea_tokens = 0
+	assert(game.STARTER_COIN == 0 and game.sea_tokens == game.STARTER_COIN)
 	game.turtle_shop_unlocked = true
 	game.highest_unlocked_stage = 1
 	game.stage_one_tutorial_seen = false
@@ -179,7 +180,7 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").coin_texture != null)
 	assert(game.get_node("HUD/Renderer").chest_texture != null)
 	assert(game.get_node("HUD/Renderer").settings_texture != null)
-	assert(game.get_node("HUD/Renderer").version_label == "Ver 1.0.0")
+	assert(game.get_node("HUD/Renderer").version_label == "Ver 1.0.1")
 	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer") and game.has_node("ExplosionPlayer"))
 	assert(game.EXPLOSION_EFFECT.resource_path == "res://Sound/Explosion.wav")
 	assert(game.explosion_player.stream == game.EXPLOSION_EFFECT and game.explosion_player.max_polyphony == 32)
@@ -276,7 +277,7 @@ func _run() -> void:
 	assert(background.active_layers[0].texture.resource_path == "res://assets/backgrounds/layer_1_space.png")
 	assert(background.active_layers[1].texture.resource_path == "res://assets/backgrounds/layer_2_nebula.png")
 	assert(game.get_node("HUD/Renderer").MENU_BACKGROUND_TEXTURE.resource_path == "res://assets/backgrounds/Menu.png")
-	assert(game.VIPER_ENDLESS_UNLOCK_SCORE == 70000)
+	assert(game.STRAW_HAT_ENDLESS_UNLOCK_SCORE == 30000)
 	var health_before_escape: int = game.player_health
 	var escaped_enemy: Dictionary = game.enemies[0]
 	escaped_enemy.pos = Vector2(100.0, game.GAME_SIZE.y + escaped_enemy.radius - 1.0)
@@ -605,7 +606,7 @@ func _run() -> void:
 	assert(game.sea_tokens == 1 and game.is_ship_unlocked(1) and game.selected_character == 1)
 	game.selected_character = 4
 	assert(not game.can_buy_turtle_ship(3))
-	assert(game.get_selected_ship_purchase_status() == "REACH 30,000 SCORE IN ENDLESS MODE")
+	assert(game.get_selected_ship_purchase_status() == "CLEAR STAGE 4 FIRST")
 	game.selected_character = 3
 	assert(game.is_ship_visible(3) and game.is_razor_special_stage_available())
 	menu_click.position = game.LAUNCH_BUTTON.get_center()
@@ -638,21 +639,36 @@ func _run() -> void:
 	menu_click.position = game.SCOREBOARD_START_BUTTON.get_center()
 	game._unhandled_input(menu_click)
 	assert(game.endless_mode and not game.selecting_character and game.score == 0)
-	game.score = game.VIPER_ENDLESS_UNLOCK_SCORE - 100
+	assert(game.endless_boss_gauge_score == 0 and is_zero_approx(game.endless_boss_delay_remaining))
+	game.score = game.STRAW_HAT_ENDLESS_UNLOCK_SCORE - 100
 	game.spawn_boss()
 	game.enemies[0].pos = Vector2(270.0, 300.0)
 	game.enemies[0].hp = 1
 	game.bullets.append({"pos": Vector2(270.0, 300.0), "vel": Vector2.ZERO})
 	game.resolve_collisions()
 	assert(game.endless_bosses_defeated == 1)
-	assert(game.is_ship_unlocked(4))
+	assert(not game.is_ship_unlocked(4) and not game.item_collection.has(4))
 	assert(game.sea_tokens == 3)
 	assert(not game.dialogue_active and not game.game_over)
-	assert(game.score_target_for_level() == game.ENDLESS_BOSS_SCORE_STEP * 2)
+	assert(game.score_target_for_level() == game.ENDLESS_BOSS_SCORE_STEP and game.score_start_for_level() == 0)
+	assert(game.endless_boss_gauge_score == 0 and is_equal_approx(game.endless_boss_delay_remaining, game.ENDLESS_BOSS_DELAY))
+	game.resolve_collisions()
+	assert(not game.boss_active)
+	game.spawn_enemy()
+	game.enemies[0].worth = game.ENDLESS_BOSS_SCORE_STEP
+	game.destroy_enemy(0)
+	assert(game.endless_boss_gauge_score == game.ENDLESS_BOSS_SCORE_STEP and not game.boss_active)
+	game.resolve_collisions()
+	assert(not game.boss_active)
+	game.endless_boss_delay_remaining = 0.0
+	game.resolve_collisions()
+	assert(game.boss_active)
 	var recorded_endless_score: int = game.score
 	game.finish_game(false)
 	assert(game.endless_scores.has(recorded_endless_score))
 	assert(game.get_endless_best_score() >= recorded_endless_score)
+	game.collect_boss_item(4)
+	assert(game.is_ship_unlocked(4))
 	game.show_character_select()
 	assert(not game.endless_mode and game.menu_page == "home")
 	game.selected_character = 2
@@ -1148,9 +1164,14 @@ func _run() -> void:
 	var plastic_man: Dictionary = game.enemies[0]
 	assert(game.enemies.size() == 21 and plastic_man.plastic_waves_spawned == 1)
 	assert(game.count_plastic_minions() == 20 and plastic_man.plastic_wave_active)
+	assert(is_equal_approx(float(game.enemies[1].plastic_home_x), float(game.enemies[10].plastic_home_x)))
+	assert(is_equal_approx(float(game.enemies[11].plastic_home_x), float(game.enemies[20].plastic_home_x)))
+	assert(float(game.enemies[11].plastic_home_x) - float(game.enemies[1].plastic_home_x) > game.GAME_SIZE.x * 0.5)
+	assert(float(game.enemies[10].target_y) - float(game.enemies[1].target_y) == 90.0)
 	for minion_index in range(1, game.enemies.size()):
 		assert(game.enemies[minion_index].kind == 1 and game.enemy_has_tag(game.enemies[minion_index], "PlasticMinion"))
 		assert(is_equal_approx(float(game.enemies[minion_index].radius), 20.0 * game.ENEMY_SIZE_MULTIPLIER))
+		assert(is_zero_approx(float(game.enemies[minion_index].plastic_sway)))
 	var protected_hp := float(plastic_man.hp)
 	game.damage_enemy(0, 30.0)
 	assert(is_equal_approx(float(plastic_man.hp), protected_hp))
@@ -1348,8 +1369,8 @@ func _run() -> void:
 	assert(game.highest_unlocked_stage == game.STAGE_SELECT_COUNT and game.razor_special_cleared)
 	assert(game.turtle_shop_unlocked and game.stage_one_tutorial_seen)
 	assert(game.sea_tokens == game.ADMIN_TEST_COIN_AMOUNT)
-	assert(game.get_endless_best_score() >= game.VIPER_ENDLESS_UNLOCK_SCORE)
-	assert(game.best_score >= game.VIPER_ENDLESS_UNLOCK_SCORE)
+	assert(game.get_endless_best_score() >= game.STRAW_HAT_ENDLESS_UNLOCK_SCORE)
+	assert(game.best_score >= game.STRAW_HAT_ENDLESS_UNLOCK_SCORE)
 	if can_test_save:
 		assert(FileAccess.file_exists(game.collection_save_path))
 	assert(game.clear_user_data())

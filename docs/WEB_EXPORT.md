@@ -19,7 +19,7 @@
 godot --headless --path . --export-release "Web (itch.io)" "Compress File/index.html"
 ```
 
-จากนั้น ZIP ไฟล์ index.* ทั้งหมดภายใน Compress File เป็น Test-Talotsa-v1.0.0-Web.zip โดยให้ index.html อยู่ที่ระดับบนสุดของ ZIP
+จากนั้น ZIP ไฟล์ index.* ทั้งหมดภายใน Compress File เป็น Test-Talotsa-v1.0.1-Web.zip โดยให้ index.html อยู่ที่ระดับบนสุดของ ZIP
 
 ## ตั้งค่า itch.io
 

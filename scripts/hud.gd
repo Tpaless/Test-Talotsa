@@ -30,7 +30,7 @@ var version_label := ""
 
 func _ready() -> void:
 	game = get_node(game_path)
-	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "1.0.0"))
+	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "1.0.1"))
 	title_font = ThemeDB.fallback_font
 	body_font = ThemeDB.fallback_font
 	story_font = ThemeDB.fallback_font
@@ -455,7 +455,7 @@ func draw_scoreboard() -> void:
 	var nightmare_endless: bool = game.difficulty_multiplier > 1
 	var active_scores: Array[int] = game.get_active_endless_scores()
 	draw_string(body_font, Vector2(38.0, 158.0), ("ENDLESS NIGHTMARE X%d" % game.difficulty_multiplier if nightmare_endless else "ENDLESS MODE") + "  •  LOCAL TOP SCORES", HORIZONTAL_ALIGNMENT_LEFT, 420.0, 13, Color("ffb2e8") if nightmare_endless else Color("b8fbff"))
-	draw_string(body_font, Vector2(38.0, 180.0), "VIPER: %d / %d" % [mini(game.get_endless_best_score(), game.VIPER_ENDLESS_UNLOCK_SCORE), game.VIPER_ENDLESS_UNLOCK_SCORE], HORIZONTAL_ALIGNMENT_LEFT, 420.0, 12, Color("fff07a") if not game.is_ship_unlocked(4) else Color("65ff9a"))
+	draw_string(body_font, Vector2(38.0, 180.0), "STRAW HAT: %d / %d  •  STAGE 4 %s" % [mini(game.get_endless_best_score(), game.STRAW_HAT_ENDLESS_UNLOCK_SCORE), game.STRAW_HAT_ENDLESS_UNLOCK_SCORE, "CLEAR" if game.item_collection.has(4) else "LOCKED"], HORIZONTAL_ALIGNMENT_LEFT, 420.0, 12, Color("fff07a") if not game.is_ship_unlocked(4) else Color("65ff9a"))
 	draw_rounded_panel(Rect2(56.0, 190.0, 428.0, 118.0), Color("07386d"), Color("fff09a"), 18, 4)
 	draw_string(body_font, Vector2(72.0, 224.0), "PERSONAL BEST", HORIZONTAL_ALIGNMENT_CENTER, 396.0, 15, Color("b8fbff"))
 	draw_string(title_font, Vector2(72.0, 280.0), "%08d" % game.get_active_endless_best_score(), HORIZONTAL_ALIGNMENT_CENTER, 396.0, 37, Color("fff07a"))
@@ -501,13 +501,14 @@ func draw_hud() -> void:
 	if not game.boss_active:
 		var stage_start: int = game.score_start_for_level()
 		var target_span: int = maxi(1, game.score_target_for_level() - stage_start)
-		var boss_progress: float = clampf(float(game.score - stage_start) / float(target_span), 0.0, 1.0)
+		var gauge_score: int = game.endless_boss_gauge_score if game.endless_mode else game.score - stage_start
+		var boss_progress: float = clampf(float(gauge_score) / float(target_span), 0.0, 1.0)
 		var gauge := Rect2(0.0, 174.0, 22.0, 510.0)
 		draw_rect(gauge, Color(0.015, 0.03, 0.065, 0.92))
 		draw_rect(Rect2(gauge.position + Vector2(2.0, gauge.size.y - (gauge.size.y - 4.0) * boss_progress - 2.0), Vector2(gauge.size.x - 4.0, (gauge.size.y - 4.0) * boss_progress)), Color("65efff"))
 		draw_rect(gauge, Color(0.48, 0.91, 1.0, 0.62), false, 1.0)
 		draw_circle(Vector2(11.0, 174.0), 10.0, Color("ffe66d") if boss_progress >= 1.0 else Color("2b5368"))
-		var gauge_label := "BOSS #%d" % (game.endless_bosses_defeated + 1) if game.endless_mode else ("SPECIAL • %s" % game.get_story_boss_name() if game.special_stage_mode else "%s  P%d/3" % [game.get_story_boss_name(), game.stage_level])
+		var gauge_label := "BOSS #%d  %d%%" % [game.endless_bosses_defeated + 1, roundi(boss_progress * 100.0)] if game.endless_mode else ("SPECIAL • %s" % game.get_story_boss_name() if game.special_stage_mode else "%s  P%d/3" % [game.get_story_boss_name(), game.stage_level])
 		draw_string(story_font, Vector2(27.0, 192.0), gauge_label, HORIZONTAL_ALIGNMENT_LEFT, 170.0, 11, Color("ffe66d"))
 	elif game.enemies.size() > 0:
 		for enemy in game.enemies:
@@ -616,7 +617,7 @@ func draw_turtle_shop() -> void:
 				"special_stage":
 					status = "SPECIAL STAGE"
 				_:
-					status = "ENDLESS 30,000"
+					status = "STAGE 4 + ENDLESS 30K"
 		draw_string(body_font, card.position + Vector2(110.0, 70.0), status, HORIZONTAL_ALIGNMENT_LEFT, 260.0, 15, Color("ffe66d") if owned or str(ship_offer.unlock_type) == "coin" else Color("718090"))
 	var selected_ship_offer: Dictionary = game.TURTLE_SHIPS[game.shop_selected_ship]
 	var already_owned: bool = game.is_ship_unlocked(int(selected_ship_offer.ship_index))
