@@ -183,7 +183,7 @@ func _run() -> void:
 	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer") and game.has_node("ExplosionPlayer"))
 	assert(game.EXPLOSION_EFFECT.resource_path == "res://Sound/Explosion.wav")
 	assert(game.explosion_player.stream == game.EXPLOSION_EFFECT and game.explosion_player.max_polyphony == 32)
-	assert(game.player_sprite.scale == Vector2(0.15, 0.15))
+	assert(game.player_sprite.scale == Vector2(0.24, 0.24))
 	assert(game.music_player.playback_type == AudioServer.PLAYBACK_TYPE_STREAM)
 	assert(game.TARGET_FPS == 60 and game.MAX_MOBILE_PARTICLES < game.MAX_DESKTOP_PARTICLES)
 	var audio_click := InputEventMouseButton.new()
