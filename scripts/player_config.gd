@@ -28,7 +28,8 @@ const SHIPS := [
 		"special": "giant_shot", "special_label": "GIANT SHOT",
 		"special_cooldown": 10.0, "special_duration": 6.0,
 		"special_interval": 2.0, "special_pierce": 10,
-		"special_bullet_speed": 520.0, "special_radius": 28.0, "special_damage": 1.0
+		"special_bullet_speed": 520.0, "special_radius": 28.0,
+		"special_damage": 1.0, "special_boss_damage": 5.0
 	},
 	# ตัวที่ 3: ยิงพัดกว้าง 5 นัด ช้าที่สุด; เลเซอร์ห้าเส้นทำดาเมจเพิ่ม 50%
 	{

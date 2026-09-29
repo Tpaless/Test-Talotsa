@@ -42,6 +42,18 @@ func _run() -> void:
 	game.unlocked_ships.clear()
 	for ship_index in range(game.PLAYER_SCENES.size()):
 		game.unlocked_ships.append(ship_index)
+	var expected_dialogue_portraits := [
+		"res://assets/sprites/player_ship.png", "res://assets/sprites/player_swift.png",
+		"res://assets/sprites/player_titan.png", "res://assets/sprites/player_razor.png",
+		"res://assets/sprites/player_viper.png"
+	]
+	for ship_index in range(game.PLAYER_SCENES.size()):
+		game.selected_character = ship_index
+		game.apply_selected_character()
+		var preview_lines: Array[Dictionary] = game.personalize_dialogue_lines(game.DIALOGUE_CONFIG.get_intro_lines(1))
+		assert(preview_lines[0].speaker == "จอร์นนี่" and preview_lines[0].portrait == expected_dialogue_portraits[ship_index])
+	game.selected_character = 0
+	game.apply_selected_character()
 	var menu_click := InputEventMouseButton.new()
 	menu_click.button_index = MOUSE_BUTTON_LEFT
 	menu_click.pressed = true
@@ -139,6 +151,17 @@ func _run() -> void:
 	var background = game.get_node("ParallaxBackground")
 	assert(not game.selecting_character)
 	assert(not game.boss_active and game.get_music_key() == "boss_1")
+	assert(game.MUSIC_TRACKS["boss_2"].resource_path == "res://Sound/Boss_Krame.mp3")
+	assert(game.MUSIC_TRACKS["boss_5_narkom"].resource_path == "res://Sound/NARKOM.mp3")
+	game.level = 2
+	assert(game.get_music_key() == "boss_2")
+	game.level = 5
+	game.lens_uses_narkom = false
+	assert(game.get_music_key() == "boss_5")
+	game.lens_uses_narkom = true
+	assert(game.get_music_key() == "boss_5_narkom")
+	game.level = 1
+	game.lens_uses_narkom = false
 	game.dialogue_active = true
 	assert(game.get_music_key() == "boss_1")
 	game.dialogue_active = false
@@ -156,6 +179,7 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").coin_texture != null)
 	assert(game.get_node("HUD/Renderer").chest_texture != null)
 	assert(game.get_node("HUD/Renderer").settings_texture != null)
+	assert(game.get_node("HUD/Renderer").version_label == "Ver 0.8.0-beta.1")
 	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer"))
 	assert(game.DIFFICULTY_BUTTONS[0].end.y <= game.CAROUSEL_SWIPE_AREA.position.y)
 	assert(game.SHIP_LOCK_BUTTON.size.x < 124.0)
@@ -235,7 +259,7 @@ func _run() -> void:
 	for final_line in game.DIALOGUE_CONFIG.get_lines(6, 3):
 		stage_six_mentions_key = stage_six_mentions_key or "กุญแจ" in str(final_line.text)
 	assert(stage_six_mentions_key)
-	assert(game.DIALOGUE_CONFIG.get_lines(1, 1)[1].speaker == "Johny")
+	assert(game.DIALOGUE_CONFIG.get_lines(1, 1)[1].speaker == "จอร์นนี่")
 	assert(game.enemies.size() == 1)
 	assert(background.active_layers.size() == 3)
 	var health_before_escape: int = game.player_health
@@ -424,7 +448,7 @@ func _run() -> void:
 		assert(game.pickups.size() == potion_count_before_boss + 2)
 		game.fire_enemy_weapon(game.enemies[0])
 		assert(game.enemy_bullets.size() == 7 + expected_extra_shots[expected_level - 1])
-		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), 0.20))
+		assert(is_equal_approx(game.get_named_boss_fire_delay(game.enemies[0]), 0.50))
 		game.enemy_bullets.clear()
 		game.enemies[0].pos = Vector2(270.0, 300.0)
 		game.enemies[0].hp = floori(game.enemies[0].max_hp * 0.25) + 1
@@ -438,6 +462,7 @@ func _run() -> void:
 		game.enemies[0].ability_timer = 0.0
 		game.update_enemies(0.01)
 		assert(game.enemy_bullets.size() == 12)
+		assert(is_equal_approx(game.enemies[0].ability_timer, 5.0))
 		assert(game.enemies[0].pos.distance_to(Vector2(270.0, 280.0)) < 21.0)
 		game.enemy_bullets.clear()
 		game.enemies[0].pos = Vector2(270.0, 300.0)
@@ -697,6 +722,19 @@ func _run() -> void:
 	assert(game.giant_shot_count == 3 and game.giant_shot_time_remaining == 0.0)
 	game.activate_special()
 	assert(game.giant_shot_count == 3)
+	# Giant Shot ใช้ดาเมจบอสโดยเฉพาะ ไม่ใช่ค่าดาเมจศัตรูทั่วไปที่เล็กจนมองไม่เห็น
+	clear_combat(game)
+	game.special_cooldown_timer = 0.0
+	game.giant_shot_time_remaining = 0.0
+	game.spawn_boss()
+	game.enemies[0].pos = Vector2(270.0, 300.0)
+	var giant_shot_boss_hp := float(game.enemies[0].hp)
+	game.bullets.clear()
+	game.activate_special()
+	assert(game.bullets.size() == 1)
+	game.bullets[0].pos = game.enemies[0].pos
+	game.resolve_collisions()
+	assert(is_equal_approx(giant_shot_boss_hp - float(game.enemies[0].hp), float(game.player_stats.special_boss_damage)))
 	game.show_character_select()
 	game.selected_character = 2
 	game.start_selected_game()
@@ -846,7 +884,7 @@ func _run() -> void:
 	assert(striker.get_skill_modifiers().max_health_multiplier == 1.5)
 	striker.free()
 
-	# คราม: ทุก 10% สะสม dash หนึ่งครั้ง, ชน 30%, และต่ำกว่า 10% dash ต่อเนื่อง 5 วินาที
+	# คราม: ทุก 20% สะสม dash หนึ่งครั้ง, ชน 20%, และต่ำกว่า 10% Frenzy 3 วินาที
 	clear_combat(game)
 	game.special_stage_mode = false
 	game.endless_mode = false
@@ -856,17 +894,21 @@ func _run() -> void:
 	var khram: Dictionary = game.enemies[0]
 	khram.hp = float(khram.max_hp) * 0.91
 	game.damage_enemy(0, float(khram.max_hp) * 0.02)
+	assert(khram.dash_queue == 0)
+	khram.hp = float(khram.max_hp) * 0.81
+	game.damage_enemy(0, float(khram.max_hp) * 0.02)
 	assert(khram.dash_queue == 1)
 	game.update_enemies(0.01)
 	assert(khram.dash_timer > 0.0)
+	assert(is_equal_approx(Vector2(khram.dash_velocity).length(), game.KHRAM_DASH_SPEED))
 	game.player_health = game.max_player_health
 	game.invulnerable_timer = 0.0
 	khram.pos = game.player_pos
 	game.resolve_collisions()
-	assert(game.player_health == game.max_player_health - ceili(game.max_player_health * 0.30))
+	assert(game.player_health == game.max_player_health - ceili(game.max_player_health * game.KHRAM_CONTACT_DAMAGE_RATIO))
 	khram.hp = float(khram.max_hp) * 0.11
 	game.damage_enemy(0, float(khram.max_hp) * 0.02)
-	assert(khram.frenzy_used and is_equal_approx(float(khram.frenzy_timer), 5.0))
+	assert(khram.frenzy_used and is_equal_approx(float(khram.frenzy_timer), game.KHRAM_FRENZY_DURATION))
 
 	# Kung Phase 1-2: ใช้ภาพ Attack และปล่อยกระสุนจากขอบบนสลับฟันปลาต่อเนื่อง 5 วินาที
 	clear_combat(game)
@@ -892,7 +934,7 @@ func _run() -> void:
 	game.update_kung_boss(kung, 0.28)
 	assert(game.enemy_bullets.size() == 4 and not is_equal_approx(float(game.enemy_bullets[0].pos.x), first_kung_row_x[0]))
 
-	# Kung Phase 3: จำตำแหน่ง Player, หมุน Attack 180 องศา, กลับมุมบน และพัก 5 วินาที
+	# Kung Phase 3: dash from a moving patrol point, return there, then patrol again after a short cooldown.
 	clear_combat(game)
 	game.level = 3
 	game.stage_level = 3
@@ -900,22 +942,38 @@ func _run() -> void:
 	kung = game.enemies[0]
 	kung.kung_final_initialized = true
 	kung.kung_home = Vector2(82.0, 118.0)
-	kung.pos = Vector2(kung.kung_home)
+	kung.pos = Vector2(170.0, 180.0)
 	kung.kung_dive_state = "rest"
 	kung.kung_rest_timer = 0.0
 	game.player_pos = Vector2(410.0, 820.0)
+	var kung_skill_origin := Vector2(kung.pos)
 	game.update_kung_final_phase(kung, 0.01)
 	var remembered_target := Vector2(kung.kung_dive_target)
+	var kung_dash_direction := Vector2(kung.kung_dash_direction)
 	assert(kung.kung_dive_state == "dive" and remembered_target == game.player_pos)
+	assert(Vector2(kung.kung_home).distance_to(kung_skill_origin) < 4.0)
+	assert(kung_dash_direction.dot((remembered_target - kung_skill_origin).normalized()) > 0.99)
 	game.player_pos = Vector2(120.0, 700.0)
 	game.update_kung_final_phase(kung, 0.10)
 	assert(Vector2(kung.kung_dive_target) == remembered_target)
-	assert(is_equal_approx(float(kung.visual.rotation), PI))
 	assert(kung.visual.texture.resource_path == "res://assets/sprites/boss_kung_attack.png")
+	# Contact pushes the player in exactly the same direction as the dash.
+	game.player_pos = Vector2(270.0, 600.0)
+	kung.pos = game.player_pos
+	game.invulnerable_timer = 0.0
+	var player_before_kung_hit: Vector2 = game.player_pos
+	game.resolve_collisions()
+	var player_knockback: Vector2 = game.player_pos - player_before_kung_hit
+	assert(kung.kung_knockback_used and player_knockback.dot(kung_dash_direction) > 0.0)
 	kung.kung_dive_state = "return"
 	kung.pos = Vector2(kung.kung_home)
 	game.update_kung_final_phase(kung, 0.01)
-	assert(kung.kung_dive_state == "rest" and is_equal_approx(float(kung.kung_rest_timer), 5.0))
+	assert(kung.kung_dive_state == "rest" and is_equal_approx(float(kung.kung_rest_timer), game.KUNG_PHASE_THREE_COOLDOWN))
+	assert(game.KUNG_PHASE_THREE_COOLDOWN < 5.0)
+	var returned_position := Vector2(kung.pos)
+	game.elapsed += 0.4
+	game.update_kung_final_phase(kung, 0.10)
+	assert(Vector2(kung.pos) != returned_position)
 
 	# เสนาหอย: เส/นาแยกตำแหน่งและมี Idle/Attack คนละ Sprite; X ตัดกลางแผนที่เท่านั้น
 	clear_combat(game)
@@ -937,7 +995,22 @@ func _run() -> void:
 	assert(Vector2(x_segments[1][0]) == Vector2(game.GAME_SIZE.x, 0.0) and Vector2(x_segments[1][1]) == Vector2(0.0, game.GAME_SIZE.y))
 	assert(se_na.visual.texture.resource_path == "res://assets/sprites/boss_se_attack.png")
 	assert(se_na.partner_visual.texture.resource_path == "res://assets/sprites/boss_na_attack.png")
-	# Phase 3 replaces the X/rotating beam with two special PNG bullets aimed at the player.
+	# Phase 2 alternates full-height rainbow columns and always leaves dodge gaps.
+	clear_combat(game)
+	game.level = 4
+	game.stage_level = 2
+	game.spawn_boss()
+	se_na = game.enemies[0]
+	se_na.se_na_rainbow_timer = 0.0
+	game.update_se_na_boss(se_na, 0.01)
+	assert(game.boss_hazards.size() == 1 and game.boss_hazards[0].kind == "rainbow_lights")
+	var first_rainbow_columns: Array = game.boss_hazards[0].columns
+	assert(first_rainbow_columns.size() == 3)
+	se_na.se_na_rainbow_timer = 0.0
+	game.update_se_na_boss(se_na, 0.01)
+	assert(game.boss_hazards.size() == 2 and game.boss_hazards[1].columns.size() == 3)
+	assert(game.boss_hazards[1].columns != first_rainbow_columns)
+	# Phase 3 launches four slow missiles from both sides continuously below 50% HP.
 	clear_combat(game)
 	game.level = 4
 	game.stage_level = 3
@@ -945,13 +1018,23 @@ func _run() -> void:
 	se_na = game.enemies[0]
 	assert(se_na.se_na_phase_three)
 	game.update_enemies(0.1)
-	assert(game.enemy_bullets.size() == 2)
+	assert(game.enemy_bullets.is_empty())
+	se_na.hp = float(se_na.max_hp) * 0.50
+	se_na.se_na_special_timer = 0.0
+	game.update_enemies(0.01)
+	assert(game.enemy_bullets.size() == 4)
+	var missiles_from_left := 0
+	var missiles_from_right := 0
 	for sena_bullet in game.enemy_bullets:
 		assert(sena_bullet.visual_key == "senahoy_special")
-		assert(is_equal_approx(float(sena_bullet.radius), 18.0))
-		assert(int(sena_bullet.damage) == ceili(game.max_player_health * 0.20))
-		var expected_aim: Vector2 = (game.player_pos - Vector2(sena_bullet.pos)).normalized()
-		assert(Vector2(sena_bullet.vel).normalized().dot(expected_aim) > 0.98)
+		assert(is_equal_approx(float(sena_bullet.radius), 16.0))
+		assert(int(sena_bullet.damage) == ceili(game.max_player_health * 0.15))
+		assert(is_equal_approx(Vector2(sena_bullet.vel).length(), game.SENA_MISSILE_SPEED))
+		if sena_bullet.vel.x > 0.0:
+			missiles_from_left += 1
+		else:
+			missiles_from_right += 1
+	assert(missiles_from_left == 2 and missiles_from_right == 2)
 	se_na.hp = float(se_na.max_hp) * 0.91
 	game.damage_enemy(0, float(se_na.max_hp) * 0.02)
 	assert(game.boss_hazards.is_empty())
@@ -976,6 +1059,40 @@ func _run() -> void:
 	var barrier_before := float(lens.tentacle_barrier_hp)
 	game.damage_enemy(0, 3.0)
 	assert(is_equal_approx(float(lens.hp), lens_hp_behind_barrier) and float(lens.tentacle_barrier_hp) < barrier_before)
+
+	# Stage 6 spawns exactly ten separated ships every three seconds.
+	clear_combat(game)
+	game.special_stage_mode = false
+	game.endless_mode = false
+	game.level = 6
+	game.stage_level = 1
+	game.score = 0
+	game.spawn_timer = 0.0
+	game.fire_timer = 999.0
+	game.update_game(0.01)
+	assert(game.enemies.size() == game.STAGE_SIX_WAVE_SIZE)
+	assert(is_equal_approx(float(game.spawn_timer), game.STAGE_SIX_WAVE_INTERVAL))
+	var first_wave_position := Vector2(game.enemies[0].pos)
+	var second_wave_position := Vector2(game.enemies[1].pos)
+	assert(first_wave_position.distance_to(second_wave_position) > 80.0)
+	# General enemies embedded in one another are separated without moving a boss.
+	game.enemies[0].pos = Vector2(270.0, 300.0)
+	game.enemies[1].pos = Vector2(270.0, 300.0)
+	game.resolve_combatant_overlaps()
+	assert(Vector2(game.enemies[0].pos).distance_to(Vector2(game.enemies[1].pos)) > 1.0)
+
+	# Plastic Man HP gains are +10%/+40%/+60% for Phase 1/2/3.
+	for plastic_phase in range(1, 4):
+		clear_combat(game)
+		game.level = 6
+		game.stage_level = plastic_phase
+		game.spawn_boss()
+		var phase_plastic: Dictionary = game.enemies[0]
+		var phase_modifiers: Dictionary = game.skill_modifiers_for(phase_plastic.visual)
+		var base_plastic_hp: int = game.BOSS_HP_BASE + 6 * game.BOSS_HP_PER_LEVEL + (plastic_phase - 1) * 16
+		var modified_plastic_hp := ceili(base_plastic_hp * float(phase_modifiers.max_health_multiplier) * float(game.difficulty_multiplier))
+		var expected_plastic_hp := ceili(float(modified_plastic_hp) * float(game.PLASTIC_PHASE_HP_MULTIPLIERS[plastic_phase - 1]))
+		assert(phase_plastic.max_hp == expected_plastic_hp)
 
 	# Plastic Man: 20 ตัวต่อ Wave, 2 Wave ที่ HP 100/50%; บอสอมตะและลูกสมุนห้ามออกสนาม
 	clear_combat(game)
@@ -1004,6 +1121,21 @@ func _run() -> void:
 	var second_wave_hp := float(plastic_man.hp)
 	game.damage_enemy(0, 10.0)
 	assert(is_equal_approx(float(plastic_man.hp), second_wave_hp))
+	# At 30% HP Plastic Man dashes at the player and fires rapidly for three seconds.
+	for minion_index in range(game.enemies.size() - 1, 0, -1):
+		game.free_enemy_visual(game.enemies[minion_index])
+		game.enemies.remove_at(minion_index)
+	plastic_man.hp = float(plastic_man.max_hp) * 0.30
+	game.player_pos = Vector2(420.0, 760.0)
+	game.enemy_bullets.clear()
+	var plastic_before_dash := Vector2(plastic_man.pos)
+	game.update_plastic_man_boss(plastic_man, 0.01)
+	assert(plastic_man.plastic_dash_used and plastic_man.plastic_dash_state == "dash")
+	assert(Vector2(plastic_man.pos).distance_to(game.player_pos) < plastic_before_dash.distance_to(game.player_pos))
+	assert(game.enemy_bullets.size() >= 1 and float(plastic_man.plastic_rapid_fire_timer) > 2.9)
+	for rapid_step in range(6):
+		game.update_plastic_rapid_fire(plastic_man, 0.5)
+	assert(is_equal_approx(float(plastic_man.plastic_rapid_fire_timer), 0.0) and game.enemy_bullets.size() > 10)
 
 	# Red Guy: แทนกระสุนปกติด้วย Beyblade 3 อัน และรอ 8 วินาทีต่อชุด
 	clear_combat(game)

@@ -5,5 +5,5 @@
 [resource]
 script = ExtResource("1_skill")
 display_name = "Plastic Army"
-description = "Plastic Man: เรียกลูกสมุนสามเวฟ โดยเปลี่ยนชนิดลูกสมุนตาม Phase"
+description = "Plastic Man: HP เพิ่มตาม Phase เรียกลูกสมุน 2 Wave และ HP 30% พุ่งพร้อมยิงรัว 3 วินาที"
 max_health_multiplier = 1.7

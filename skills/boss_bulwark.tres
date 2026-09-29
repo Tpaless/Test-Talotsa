@@ -5,5 +5,5 @@
 [resource]
 script = ExtResource("1_skill")
 display_name = "Thomas Frenzy"
-description = "โทมัส: ยิงรัวเมื่อ HP 50% และหมุนระเบิดกระสุนรูปบวกทุก 2 วินาทีเมื่อ HP 10%"
+description = "โทมัส: ยิงรัวเมื่อ HP 50% และหมุนระเบิดกระสุนรูปบวกทุก 5 วินาทีเมื่อ HP 10% (ลดอัตรายิง 60%)"
 max_health_multiplier = 1.5

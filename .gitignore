@@ -6,4 +6,5 @@
 /build/
 /exports/
 *.tmp
+/Compress File/
 *.log

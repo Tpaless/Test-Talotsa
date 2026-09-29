@@ -24,10 +24,12 @@ var shopkeeper_texture: Texture2D
 var coin_texture: Texture2D
 var chest_texture: Texture2D
 var settings_texture: Texture2D
+var version_label := ""
 
 
 func _ready() -> void:
 	game = get_node(game_path)
+	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "0.8.0-beta.1"))
 	title_font = ThemeDB.fallback_font
 	body_font = ThemeDB.fallback_font
 	story_font = ThemeDB.fallback_font
@@ -158,6 +160,7 @@ func draw_home_menu() -> void:
 	var launch_detail := "UNLOCK RAZOR" if razor_trial else ("6 STAGES • ONE RUN" if game.difficulty_multiplier > 1 else "CHOOSE STAGE")
 	draw_design_button(game.LAUNCH_BUTTON, "TRIAL" if razor_trial else "START", launch_detail, true, unlocked or razor_trial)
 	draw_string(body_font, Vector2(18.0, 936.0), "SWIPE OR USE ARROWS   •   BEST %06d" % game.best_score, HORIZONTAL_ALIGNMENT_CENTER, 504.0, 12, Color("c8fbff"))
+	draw_string(body_font, Vector2(18.0, 952.0), version_label, HORIZONTAL_ALIGNMENT_LEFT, 120.0, 10, Color("8fc9d8"))
 	if game.purchase_overlay_visible:
 		draw_purchase_confirmation()
 

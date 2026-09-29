@@ -5,5 +5,5 @@
 [resource]
 script = ExtResource("1_skill")
 display_name = "Se-Na Laser"
-description = "เสนาหอย: เลเซอร์ X ทุก 10% และรวมร่างปล่อยลำแสงหมุนเมื่อ HP 30%"
+description = "เสนาหอย: Phase 2 ยิงม่านแสงสีรุ้งสลับช่อง และ Phase 3 ยิงขีปนาวุธช้า 4 ลูกจากสองฝั่งเมื่อ HP 50%"
 max_health_multiplier = 1.5

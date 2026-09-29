@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.8.0-beta.1] - 2026-09-29
+
+- ปรับ Plastic Man: HP เพิ่ม 10%/40%/60% ตาม Phase, เคลื่อนที่เร็วขึ้น และ HP 30% พุ่งหา Player พร้อมยิงรัว 3 วินาที
+- ปรับ Stage 6 ให้เกิดศัตรู 10 ลำทุก 3 วินาที จัด Formation ตามขนาด Sprite และแยกยานที่ซ้อนกับบอส/ยานอื่นเพื่อลดอาการกระตุก
+- เพิ่มเสนาหอย Phase 2 เป็นม่านแสงสีรุ้งแนวตั้งสลับช่องหลบ และ Phase 3 เป็นขีปนาวุธช้า 4 ลูกจากสองฝั่งเมื่อ HP 50%
+- ปรับกุ้ง Phase 3 ให้กลับจุดเริ่มสกิลแล้วลาดตระเวนต่อ ลดเวลาพักเหลือ 2 วินาที และผลัก Player ตามทิศพุ่งชน
+- เพิ่มเพลงคราม Boss_Krame.mp3 และโอกาส 10% ที่ด่านหมึกเลนส์จะใช้ NARKOM.mp3
+
+- เนิฟคราม: ลดความเร็ว Dash จาก 760 เป็น 520, ลดความเร็วแกว่ง, ลดดาเมจชนจาก 30% เป็น 20%, ใช้ Dash ทุกช่วง HP 20% และลด Frenzy จาก 5 เป็น 3 วินาที
+- แก้ Giant Shot ให้สร้างดาเมจต่อบอสอย่างชัดเจน และเพิ่ม regression test ครบทุกสกิลผู้เล่น
+- ลดอัตรายิงของ Thomas Frenzy ลง 60% รวมถึงกระสุนรูปบวก
+- เปลี่ยนชื่อผู้พูด Johny เป็น จอร์นนี่ และใช้ Portrait ตามตัวละครที่ผู้เล่นเลือก
+- เพิ่มเลขเวอร์ชันบนหน้า Home และเตรียม Web Export สำหรับ Browser บนมือถือและ PC
+
+
 - Enlarged non-boss enemies by another 70% from their previous size and enlarged health potions by 120%, including their visual and collection radius.
 - Enlarged every non-boss enemy (including Plastic Man minions) by 50% while leaving boss sizes unchanged.
 - Moved the white chest menu icon from Score Board to Quest and changed Asset Menu icon modulation to white.
@@ -12,12 +27,12 @@
 - เพิ่ม Typewriter ความเร็วสูงและ Animation เปิดกล่อง/Portrait ในบทสนทนา โดยแตะครั้งแรกเพื่อแสดงข้อความทันทีและแตะอีกครั้งเพื่อไปบรรทัดถัดไป
 - เปลี่ยนชื่อ Kung ที่แสดงในเกมเป็นกุ้ง และใช้ `Viper_Skill.png` เป็นเอฟเฟกต์สกิลที่ยืดออกจาก Straw Hat Johny
 - เพิ่ม Web Export preset แบบ Compatibility/non-threaded และคู่มือเตรียมไฟล์สำหรับ itch.io บน Browser มือถือและ PC
-- เพิ่มกุ้งเป็นบอส Story Stage 3 พร้อม Sprite Idle/Attack PNG, Wave กระสุนฟันปลา 5 วินาที และท่าพุ่ง Phase 3 จากมุมบนไปยังตำแหน่งล่าสุดของ Player ก่อนกลับและพัก 5 วินาที
+- เพิ่มกุ้งเป็นบอส Story Stage 3 พร้อม Sprite Idle/Attack PNG, Wave กระสุนฟันปลา 5 วินาที และท่าพุ่ง Phase 3 ที่กลับจุดเริ่มสกิลแล้วลาดตระเวนต่อ
 - เพิ่มการเอียงซ้าย–ขวาของ Player/บอสตามการเคลื่อนที่ และภาพซ้อนโปร่งใสของ Player เพื่อเพิ่มมิติและความรู้สึกเร็ว
 - เรียงงานวิจัยจาก `PROJECT _ DESIGN/TEE MAR.md` เป็น Stage 1–6: งานวิจัย 5, 1, 3-A, 2, 3-B และ 4 โดยงานวิจัย 3 ฉบับเต็มปลดล็อกเมื่อเก็บชิ้นส่วนกุ้งและหมึกครบ
 - เพิ่ม Nightmare X2/X3 หลังเก็บงานวิจัยครบ รองรับ Story แบบ Stage 1–6 ม้วนเดียวจบและเริ่ม Stage 1 ใหม่เมื่อตาย รวมถึง Endless Nightmare ที่แยก Score Board จากโหมดปกติ
 - อัปเดตบอสทั้งหมดเป็น PNG ล่าสุด รวมกุ้ง, Plastic Man และ Red Guy และขยายระบบเป็น Story 6 บอสกับ Red Guy ด่านพิเศษ
-- เปลี่ยนเสนาหอย Phase 3 จากลำแสงหมุนเป็นกระสุนพิเศษจากเสและนาที่เล็งใส่ Player ทุก 1.35 วินาที โดยใช้ `SENAHOY_Bullet.png` และปรับเปลี่ยน Texture ได้จาก `visual_config.gd`
+- เปลี่ยนเสนาหอย Phase 3 เป็นขีปนาวุธพิเศษช้า 4 ลูกจากซ้าย–ขวาเมื่อ HP 50% โดยใช้ SENAHOY_Bullet.png
 - อัปเดต Sprite ล่าสุดเป็น PNG สำหรับ Thomas, Khram, Lens, หนวด/กำแพง Lens, เส/นา Idle-Attack, Scout, Striker, Tank และไอเทมฟื้น HP พร้อมปรับ Scale อัตโนมัติตามขนาดภาพ
 - ปรับความอ่านง่ายของข้อความ Menu/Quest ด้วยขอบดำและเงาที่คมขึ้น ลดการเหลื่อมของชั้น Gradient และขยับ `FILE` ขึ้นเพิ่มอีก 3 px
 - แยกเสและนาเป็น Sprite Idle/Attack คนละชุดรวม 4 ภาพและเคลื่อนที่แยกกัน พร้อมตรึงเลเซอร์ X จากมุมซ้าย–ขวาให้ตัดกันกลาง Map เท่านั้น
@@ -25,7 +40,7 @@
 - เปลี่ยนหนวดหมึกเลนส์ให้โจมตีจากด้านข้างและเพิ่ม Sprite หนวด/กำแพงหนวดจากขอบซ้าย–ขวาสำหรับเกราะ Phase 3
 - เพิ่มรหัส `[AdminTest]` บนหน้า Home: กด `↑ ↑ ↓ ↓ ← →` แล้วกด START หนึ่งครั้ง เพื่อปลดล็อกตัวละคร ด่าน Quest และเงื่อนไข Endless ทั้งหมด พร้อม Coin ทดสอบ 999
 - เพิ่ม mechanics เฉพาะบอสเดิมทั้งหก: Thomas Frenzy, Khram Dash, Se-Na Laser, Lens Tentacles, Plastic Army และ Red Guy Beyblade
-- เปลี่ยนทูเป็น Plastic Man ตัวร้ายหลัก พร้อมโมเดลใหม่ เนื้อเรื่องใหม่ และลูกสมุนยิงตอบโต้ 3 เวฟแยกตาม Phase
+- เปลี่ยนทูเป็น Plastic Man ตัวร้ายหลัก พร้อมโมเดลใหม่ เนื้อเรื่องใหม่ และลูกสมุนยิงตอบโต้ 2 Wave ต่อ Phase
 - เพิ่ม Pause Overlay ปุ่ม Resume/Restart/Menu โดย Story ที่ออกก่อนจบไม่ได้ Coin จากรอบนั้น แต่ Endless ยังเก็บ Coin และคะแนน
 - ขยับข้อความ `FILE` บนแฟ้ม Quest ขึ้น 3 px
 - แยกโมเดลบอสเป็น Scene ตามตัวละคร พร้อมภาพเฉพาะตัวที่เปลี่ยนได้แยกจากกัน

@@ -28,6 +28,30 @@ const BOSS_HP_BASE := 50
 const BOSS_HP_PER_LEVEL := 14
 const BOSS_DAMAGE_RATIO := 0.20
 const POTION_HEAL_RATIO := 0.25
+# ลดอัตรายิงของโทมัส 60%: interval ใหม่ = interval เดิม / 0.40
+const THOMAS_FIRE_RATE_SCALE := 0.40
+const THOMAS_FIRE_DELAY_MULTIPLIER := 1.0 / THOMAS_FIRE_RATE_SCALE
+const KHRAM_SWAY_SPEED := 2.6
+const KHRAM_DASH_SPEED := 520.0
+const KHRAM_DASH_DURATION := 0.72
+const KHRAM_CONTACT_DAMAGE_RATIO := 0.20
+const KHRAM_FRENZY_DURATION := 3.0
+const KUNG_PHASE_THREE_COOLDOWN := 2.0
+const KUNG_PHASE_THREE_DASH_SPEED := 900.0
+const KUNG_PHASE_THREE_KNOCKBACK := 165.0
+const STAGE_SIX_WAVE_SIZE := 10
+const STAGE_SIX_WAVE_INTERVAL := 3.0
+const PLASTIC_PHASE_HP_MULTIPLIERS := [1.10, 1.40, 1.60]
+const PLASTIC_MOVE_SPEED := 1.25
+const PLASTIC_DASH_SPEED := 680.0
+const PLASTIC_DASH_DURATION := 1.10
+const PLASTIC_RAPID_FIRE_DURATION := 3.0
+const PLASTIC_RAPID_FIRE_INTERVAL := 0.16
+const SENA_RAINBOW_INTERVAL := 3.0
+const SENA_RAINBOW_WARNING := 0.80
+const SENA_RAINBOW_ACTIVE := 0.55
+const SENA_MISSILE_INTERVAL := 1.80
+const SENA_MISSILE_SPEED := 145.0
 # โหมดเคลื่อนที่ช้า: กด Shift หรือกดปุ่ม SLOW ค้างบนจอสัมผัส
 const SLOW_SPEED_MULTIPLIER := 0.42
 const SLOW_BUTTON := Rect2(18.0, 866.0, 76.0, 76.0)
@@ -50,9 +74,11 @@ const MUSIC_TRACKS := {
 	"menu": preload("res://Sound/MENU_THEME.mp3"),
 	"endless": preload("res://Sound/Endless_Mode_&_Boss_Puma.mp3"),
 	"boss_1": preload("res://Sound/Boss_Thomas.mp3"),
+	"boss_2": preload("res://Sound/Boss_Krame.mp3"),
 	"boss_3": preload("res://Sound/Boss_Kung.mp3"),
 	"boss_4": preload("res://Sound/BOSS_SenaHoy.mp3"),
 	"boss_5": preload("res://Sound/Boss_lens.wav"),
+	"boss_5_narkom": preload("res://Sound/NARKOM.mp3"),
 	"boss_6": preload("res://Sound/Boss_Plasticman.mp3"),
 	"boss_7": preload("res://Sound/Boss_red_boy.mp3")
 }
@@ -254,6 +280,7 @@ var effect_volume := 0.86
 var current_music_key := ""
 var settings_drag_index := -1
 var clear_data_confirmation_visible := false
+var lens_uses_narkom := false
 
 var bullets: Array = []
 var enemy_bullets: Array = []
@@ -468,9 +495,15 @@ func get_music_key() -> String:
 		return "endless"
 	# เพลงประจำบอสคือเพลงประจำ Stage จึงเล่นตั้งแต่ช่วงเก็บเกจ ผ่านบทสนทนา
 	# และต่อเนื่องจนจบ Stage ไม่ได้เริ่มเฉพาะตอนบอสปรากฏ
-	if level in [1, 3, 4, 5, 6, 7]:
+	if level == 5 and lens_uses_narkom:
+		return "boss_5_narkom"
+	if level in [1, 2, 3, 4, 5, 6, 7]:
 		return "boss_%d" % level
 	return ""
+
+
+func roll_stage_music_variant() -> void:
+	lens_uses_narkom = not endless_mode and not special_stage_mode and level == 5 and rng.randf() < 0.10
 
 
 func update_audio_track(force: bool = false) -> void:
@@ -777,6 +810,7 @@ func reset_game() -> void:
 	player_health = max_player_health
 	level = SPECIAL_BOSS_LEVEL if special_stage_mode else selected_stage
 	stage_level = 1
+	roll_stage_music_variant()
 	score = 0
 	boss_active = false
 	victory = false
@@ -1382,8 +1416,13 @@ func update_game(delta: float) -> void:
 		fire_player_weapon()
 
 	if spawn_timer <= 0.0 and not boss_active:
-		spawn_enemy()
-		spawn_timer = maxf(0.30, 0.92 - elapsed * 0.007 - (stage_level - 1) * 0.07) * rng.randf_range(0.78, 1.15)
+		if level == 6 and not endless_mode and not special_stage_mode:
+			for wave_slot in range(STAGE_SIX_WAVE_SIZE):
+				spawn_enemy(wave_slot)
+			spawn_timer = STAGE_SIX_WAVE_INTERVAL
+		else:
+			spawn_enemy()
+			spawn_timer = maxf(0.30, 0.92 - elapsed * 0.007 - (stage_level - 1) * 0.07) * rng.randf_range(0.78, 1.15)
 
 	update_bullets(delta)
 	update_enemies(delta)
@@ -1393,6 +1432,7 @@ func update_game(delta: float) -> void:
 		return
 	update_pickups(delta)
 	resolve_collisions()
+	resolve_combatant_overlaps()
 	player_sprite.position = player_pos
 	player_sprite.visible = not game_over and (invulnerable_timer <= 0.0 or int(invulnerable_timer * 12.0) % 2 == 0)
 
@@ -1487,7 +1527,7 @@ func spawn_player_bullet(offset: Vector2, velocity: Vector2, visual_key: String,
 		"homing": homing, "life": 4.0})
 
 
-func spawn_enemy() -> void:
+func spawn_enemy(wave_slot: int = -1) -> void:
 	var kind := 0
 	var roll := rng.randf()
 	# ด่านสูงขึ้นมีศัตรูหนักและศัตรูยิงถี่มากขึ้น
@@ -1515,6 +1555,13 @@ func spawn_enemy() -> void:
 	radius *= ENEMY_SIZE_MULTIPLIER
 
 	var spawn_position := Vector2(rng.randf_range(radius + 15.0, GAME_SIZE.x - radius - 15.0), -radius - 8.0)
+	if wave_slot >= 0:
+		# Stage 6 uses a three-column formation so all ten enlarged ships enter apart.
+		var wave_column := wave_slot % 3
+		var wave_row := wave_slot / 3
+		spawn_position.x = (float(wave_column) + 0.5) * GAME_SIZE.x / 3.0
+		spawn_position.x = clampf(spawn_position.x, radius + 15.0, GAME_SIZE.x - radius - 15.0)
+		spawn_position.y -= float(wave_row) * 180.0
 	var enemy_visual: Sprite2D = ENEMY_SCENES[kind].instantiate()
 	apply_visual_override(enemy_visual, ENEMY_VISUAL_KEYS[kind])
 	fit_sprite_to_box(enemy_visual, Vector2(radius * 2.25, radius * 2.25))
@@ -1554,6 +1601,8 @@ func spawn_boss() -> void:
 	fit_sprite_to_box(boss_visual, Vector2(radius * 2.2, radius * 2.2))
 	var modifiers: Dictionary = skill_modifiers_for(boss_visual)
 	hp = ceili(hp * modifiers.max_health_multiplier * float(difficulty_multiplier))
+	if boss_stage == 6:
+		hp = ceili(float(hp) * float(PLASTIC_PHASE_HP_MULTIPLIERS[clampi(stage_level - 1, 0, 2)]))
 	var boss_data: Dictionary = {
 		"pos": spawn_position,
 		"vel": Vector2.ZERO,
@@ -1584,9 +1633,14 @@ func spawn_boss() -> void:
 		"kung_dive_target": Vector2.ZERO,
 		"kung_home": Vector2.ZERO,
 		"kung_rest_timer": 0.0,
+		"kung_dash_direction": Vector2.DOWN,
+		"kung_dash_timer": 0.0,
+		"kung_knockback_used": false,
 		"se_na_fire_timer": 0.0,
 		"se_na_phase_three": boss_stage == 4 and stage_level >= 3,
-		"se_na_special_timer": 0.0,
+		"se_na_special_timer": 0.65,
+		"se_na_rainbow_timer": 0.65,
+		"se_na_rainbow_pattern": 0,
 		"spin_angle": 0.0,
 		"se_pos": spawn_position + Vector2(-54.0, 0.0),
 		"na_pos": spawn_position + Vector2(54.0, 0.0),
@@ -1597,6 +1651,13 @@ func spawn_boss() -> void:
 		"tentacle_barrier_spawned": false,
 		"plastic_waves_spawned": 0,
 		"plastic_wave_active": false,
+		"plastic_dash_used": false,
+		"plastic_dash_state": "",
+		"plastic_dash_target": Vector2.ZERO,
+		"plastic_dash_timer": 0.0,
+		"plastic_rapid_fire_timer": 0.0,
+		"plastic_rapid_fire_tick": 0.0,
+		"plastic_rapid_fire_shot": 0,
 		"idle_texture": boss_visual.texture,
 		"shoot": (8.0 if boss_stage == 7 else 1.0 * modifiers.fire_interval_multiplier) / float(difficulty_multiplier),
 		"fire_interval_multiplier": modifiers.fire_interval_multiplier,
@@ -1725,9 +1786,12 @@ func activate_special() -> void:
 
 
 func spawn_giant_shot() -> void:
+	var regular_damage := float(player_stats.special_damage)
+	var boss_damage := float(player_stats.get("special_boss_damage", regular_damage))
+	var boss_multiplier := boss_damage / regular_damage if regular_damage > 0.0 else 1.0
 	bullets.append({"pos": player_pos + Vector2(0.0, -30.0), "vel": Vector2.UP * float(player_stats.special_bullet_speed),
-		"visual_key": "player_giant", "damage": float(player_stats.special_damage), "radius": float(player_stats.special_radius),
-		"boss_damage_multiplier": 1.0, "homing": true, "life": 4.0,
+		"visual_key": "player_giant", "damage": regular_damage, "radius": float(player_stats.special_radius),
+		"boss_damage_multiplier": boss_multiplier, "homing": true, "life": 4.0,
 		"pierce_remaining": int(player_stats.special_pierce), "hit_ids": []})
 
 
@@ -1995,7 +2059,7 @@ func update_thomas_boss(enemy: Dictionary, delta: float) -> bool:
 	enemy.ability_timer = float(enemy.ability_timer) - delta
 	if enemy.ability_timer <= 0.0:
 		fire_thomas_cross_burst(enemy)
-		enemy.ability_timer = 2.0
+		enemy.ability_timer = 2.0 * THOMAS_FIRE_DELAY_MULTIPLIER
 	return true
 
 
@@ -2023,7 +2087,7 @@ func update_khram_boss(enemy: Dictionary, delta: float) -> bool:
 		enemy.pos.y = clampf(float(enemy.pos.y), 100.0, GAME_SIZE.y - 90.0)
 		enemy.visual.rotation = Vector2(enemy.dash_velocity).angle() + PI * 0.5
 		return true
-	move_boss_sway(enemy, delta, 250.0, 3.8, 190.0)
+	move_boss_sway(enemy, delta, 250.0, KHRAM_SWAY_SPEED, 190.0)
 	enemy.visual.rotation = 0.0
 	return false
 
@@ -2033,8 +2097,8 @@ func start_khram_dash(enemy: Dictionary, consume_queue: bool) -> void:
 	target.x = clampf(target.x, 55.0, GAME_SIZE.x - 55.0)
 	target.y = clampf(target.y, 250.0, GAME_SIZE.y - 75.0)
 	var direction: Vector2 = (target - Vector2(enemy.pos)).normalized()
-	enemy.dash_velocity = direction * 760.0
-	enemy.dash_timer = 0.72
+	enemy.dash_velocity = direction * KHRAM_DASH_SPEED
+	enemy.dash_timer = KHRAM_DASH_DURATION
 	if consume_queue:
 		enemy.dash_queue = maxi(0, int(enemy.dash_queue) - 1)
 	spawn_sparks(enemy.pos, Color("55d8ff"), 18, 190.0)
@@ -2082,7 +2146,7 @@ func fire_kung_zigzag_row(enemy: Dictionary) -> void:
 func update_kung_final_phase(enemy: Dictionary, delta: float) -> bool:
 	if not bool(enemy.kung_final_initialized):
 		enemy.kung_final_initialized = true
-		enemy.kung_home = Vector2(82.0 if sin(float(enemy.phase)) < 0.0 else GAME_SIZE.x - 82.0, 118.0)
+		enemy.kung_home = Vector2(GAME_SIZE.x * 0.5, 165.0)
 		enemy.kung_dive_state = "positioning"
 		enemy.kung_rest_timer = 0.8
 	var state := String(enemy.kung_dive_state)
@@ -2096,31 +2160,40 @@ func update_kung_final_phase(enemy: Dictionary, delta: float) -> bool:
 		return true
 	if state == "rest":
 		set_kung_attacking(enemy, false)
-		enemy.pos = home
+		enemy.visual.rotation = 0.0
+		var patrol_x := GAME_SIZE.x * 0.5 + sin(elapsed * 2.3 + float(enemy.phase)) * 175.0
+		enemy.pos.x = move_toward(float(enemy.pos.x), patrol_x, 255.0 * delta)
+		enemy.pos.y = move_toward(float(enemy.pos.y), 165.0 + sin(elapsed * 1.7) * 24.0, 145.0 * delta)
 		enemy.kung_rest_timer = maxf(0.0, float(enemy.kung_rest_timer) - delta)
 		if float(enemy.kung_rest_timer) <= 0.0:
+			# Like Khram, lock the current player direction when the dash begins.
+			enemy.kung_home = Vector2(enemy.pos)
 			enemy.kung_dive_target = player_pos
+			var dash_direction := (Vector2(enemy.kung_dive_target) - Vector2(enemy.pos)).normalized()
+			enemy.kung_dash_direction = dash_direction if dash_direction.length_squared() > 0.001 else Vector2.DOWN
+			enemy.kung_dash_timer = 1.25
+			enemy.kung_knockback_used = false
 			enemy.kung_dive_state = "dive"
 			set_kung_attacking(enemy, true)
 			spawn_sparks(enemy.pos, Color("ffb04f"), 26, 245.0)
 		return true
 	set_kung_attacking(enemy, true)
-	enemy.visual.rotation = PI
+	enemy.visual.rotation = Vector2(enemy.kung_dash_direction).angle() + PI * 0.5
 	if state == "dive":
+		enemy.kung_dash_timer = maxf(0.0, float(enemy.kung_dash_timer) - delta)
 		var target := Vector2(enemy.kung_dive_target)
-		enemy.pos = Vector2(enemy.pos).move_toward(target, 900.0 * delta)
-		if Vector2(enemy.pos).distance_to(target) <= 5.0:
+		enemy.pos = Vector2(enemy.pos).move_toward(target, KUNG_PHASE_THREE_DASH_SPEED * delta)
+		if Vector2(enemy.pos).distance_to(target) <= 5.0 or float(enemy.kung_dash_timer) <= 0.0:
 			enemy.kung_dive_state = "return"
 	elif state == "return":
 		enemy.pos = Vector2(enemy.pos).move_toward(home, 760.0 * delta)
 		if Vector2(enemy.pos).distance_to(home) <= 5.0:
 			enemy.pos = home
 			enemy.kung_dive_state = "rest"
-			enemy.kung_rest_timer = 5.0
+			enemy.kung_rest_timer = KUNG_PHASE_THREE_COOLDOWN
 			set_kung_attacking(enemy, false)
 			enemy.visual.rotation = 0.0
 	return true
-
 
 func setup_se_na_pair(enemy: Dictionary) -> void:
 	enemy.visual.texture = SE_IDLE_TEXTURE
@@ -2156,29 +2229,58 @@ func update_se_na_boss(enemy: Dictionary, delta: float) -> bool:
 	enemy.se_pos = Vector2(enemy.pos) + Vector2(-separation, sin(elapsed * 2.2) * 13.0)
 	enemy.na_pos = Vector2(enemy.pos) + Vector2(separation, cos(elapsed * 2.0) * 13.0)
 	enemy.se_na_fire_timer = maxf(0.0, float(enemy.se_na_fire_timer) - delta)
-	if bool(enemy.se_na_phase_three):
+	var special_attacking := false
+	if stage_level == 2:
+		enemy.se_na_rainbow_timer = float(enemy.se_na_rainbow_timer) - delta
+		if enemy.se_na_rainbow_timer <= 0.0:
+			start_se_na_rainbow_lights(enemy)
+			enemy.se_na_rainbow_timer = SENA_RAINBOW_INTERVAL
+			enemy.se_na_fire_timer = SENA_RAINBOW_WARNING + SENA_RAINBOW_ACTIVE
+			special_attacking = true
+	if bool(enemy.se_na_phase_three) and float(enemy.hp) / maxf(1.0, float(enemy.max_hp)) <= 0.50:
 		enemy.se_na_special_timer = float(enemy.se_na_special_timer) - delta
 		if enemy.se_na_special_timer <= 0.0:
-			fire_se_na_special_bullets(enemy)
-			enemy.se_na_special_timer = 1.35
-			enemy.se_na_fire_timer = 0.42
+			fire_se_na_crossing_missiles(enemy)
+			enemy.se_na_special_timer = SENA_MISSILE_INTERVAL
+			enemy.se_na_fire_timer = 0.50
+			special_attacking = true
 	var attacking := float(enemy.se_na_fire_timer) > 0.0
 	set_se_na_attack_sprites(enemy, attacking)
 	enemy.visual.rotation = sin(elapsed * 1.7) * 0.08
 	var partner := enemy.get("partner_visual") as Sprite2D
 	if is_instance_valid(partner):
 		partner.rotation = -sin(elapsed * 1.9) * 0.08
-	return bool(enemy.se_na_phase_three) or attacking
+	return special_attacking or attacking
 
 
-func fire_se_na_special_bullets(enemy: Dictionary) -> void:
-	var origins := [Vector2(enemy.se_pos), Vector2(enemy.na_pos)]
-	for origin_index in range(origins.size()):
-		var origin: Vector2 = origins[origin_index]
-		var aim := (player_pos - origin).normalized()
-		add_enemy_bullet(origin, aim * 285.0, 18.0, BOSS_KIND, true, ceili(max_player_health * 0.20), "senahoy_special", -7.0 if origin_index == 0 else 7.0)
-	spawn_sparks(Vector2(enemy.pos), Color("ffd86b"), 18, 170.0)
+func start_se_na_rainbow_lights(enemy: Dictionary) -> void:
+	var pattern := int(enemy.se_na_rainbow_pattern) % 2
+	var columns: Array[float] = []
+	for lane in range(6):
+		if lane % 2 == pattern:
+			columns.append(45.0 + float(lane) * 90.0)
+	boss_hazards.append({
+		"kind": "rainbow_lights",
+		"warning": SENA_RAINBOW_WARNING,
+		"active": SENA_RAINBOW_ACTIVE,
+		"columns": columns,
+		"pattern": pattern
+	})
+	enemy.se_na_rainbow_pattern = 1 - pattern
+	spawn_sparks(Vector2(enemy.pos), Color("fff27a"), 24, 190.0)
 
+
+func fire_se_na_crossing_missiles(enemy: Dictionary) -> void:
+	var pattern := int(enemy.se_na_rainbow_pattern) % 2
+	var y_shift := 42.0 if pattern == 1 else 0.0
+	var lane_y := [260.0 + y_shift, 430.0 - y_shift, 600.0 + y_shift, 770.0 - y_shift]
+	for shot_index in range(4):
+		var from_left := shot_index % 2 == 0
+		var origin := Vector2(-24.0 if from_left else GAME_SIZE.x + 24.0, float(lane_y[shot_index]))
+		var velocity := Vector2.RIGHT * SENA_MISSILE_SPEED if from_left else Vector2.LEFT * SENA_MISSILE_SPEED
+		add_enemy_bullet(origin, velocity, 16.0, BOSS_KIND, true, ceili(max_player_health * 0.15), "senahoy_special", 4.5 if from_left else -4.5)
+	enemy.se_na_rainbow_pattern = 1 - pattern
+	spawn_sparks(Vector2(enemy.pos), Color("ffd86b"), 22, 180.0)
 
 func start_se_na_x_laser(enemy: Dictionary) -> void:
 	# Both beams always originate from opposite upper corners and intersect at map center.
@@ -2226,7 +2328,13 @@ func count_plastic_minions() -> int:
 
 
 func update_plastic_man_boss(enemy: Dictionary, delta: float) -> bool:
-	move_boss_sway(enemy, delta, 235.0, 0.78, 95.0)
+	var health_ratio := float(enemy.hp) / maxf(1.0, float(enemy.max_hp))
+	if health_ratio <= 0.30 and not bool(enemy.plastic_dash_used):
+		start_plastic_man_assault(enemy)
+	var rapid_fire_active := update_plastic_rapid_fire(enemy, delta)
+	if update_plastic_dash(enemy, delta):
+		return true
+	move_boss_sway(enemy, delta, 235.0, PLASTIC_MOVE_SPEED, 125.0)
 	var minions_alive := count_plastic_minions()
 	enemy.plastic_wave_active = minions_alive > 0
 	if minions_alive > 0:
@@ -2234,11 +2342,56 @@ func update_plastic_man_boss(enemy: Dictionary, delta: float) -> bool:
 	if int(enemy.plastic_waves_spawned) == 0:
 		start_plastic_minion_wave(enemy)
 		return true
-	if int(enemy.plastic_waves_spawned) == 1 and float(enemy.hp) / float(enemy.max_hp) <= 0.50:
+	if int(enemy.plastic_waves_spawned) == 1 and health_ratio <= 0.50:
 		start_plastic_minion_wave(enemy)
 		return true
-	return false
+	return rapid_fire_active
 
+
+func start_plastic_man_assault(enemy: Dictionary) -> void:
+	enemy.plastic_dash_used = true
+	enemy.plastic_dash_state = "dash"
+	enemy.plastic_dash_target = Vector2(clampf(player_pos.x, 60.0, GAME_SIZE.x - 60.0), clampf(player_pos.y, 260.0, GAME_SIZE.y - 80.0))
+	enemy.plastic_dash_timer = PLASTIC_DASH_DURATION
+	enemy.plastic_rapid_fire_timer = PLASTIC_RAPID_FIRE_DURATION
+	enemy.plastic_rapid_fire_tick = 0.0
+	spawn_sparks(Vector2(enemy.pos), Color("67e6ff"), 30, 245.0)
+
+
+func update_plastic_dash(enemy: Dictionary, delta: float) -> bool:
+	var state := String(enemy.plastic_dash_state)
+	if state.is_empty():
+		return false
+	if state == "dash":
+		enemy.plastic_dash_timer = maxf(0.0, float(enemy.plastic_dash_timer) - delta)
+		var target := Vector2(enemy.plastic_dash_target)
+		enemy.pos = Vector2(enemy.pos).move_toward(target, PLASTIC_DASH_SPEED * delta)
+		if Vector2(enemy.pos).distance_to(target) <= 6.0 or enemy.plastic_dash_timer <= 0.0:
+			enemy.plastic_dash_state = "recover"
+	elif state == "recover":
+		var home := Vector2(GAME_SIZE.x * 0.5, 235.0)
+		enemy.pos = Vector2(enemy.pos).move_toward(home, PLASTIC_DASH_SPEED * 0.72 * delta)
+		if Vector2(enemy.pos).distance_to(home) <= 6.0:
+			enemy.pos = home
+			enemy.plastic_dash_state = ""
+	return true
+
+
+func update_plastic_rapid_fire(enemy: Dictionary, delta: float) -> bool:
+	if float(enemy.plastic_rapid_fire_timer) <= 0.0:
+		return false
+	enemy.plastic_rapid_fire_timer = maxf(0.0, float(enemy.plastic_rapid_fire_timer) - delta)
+	enemy.plastic_rapid_fire_tick = float(enemy.plastic_rapid_fire_tick) - delta
+	while enemy.plastic_rapid_fire_tick <= 0.0 and enemy.plastic_rapid_fire_timer > 0.0:
+		var shot_index := int(enemy.plastic_rapid_fire_shot)
+		var aim := (player_pos - Vector2(enemy.pos)).normalized()
+		if aim.length_squared() <= 0.001:
+			aim = Vector2.DOWN
+		var angle := -0.10 if shot_index % 2 == 0 else 0.10
+		add_enemy_bullet(Vector2(enemy.pos) + aim * 32.0, aim.rotated(angle) * 390.0, 7.0, BOSS_KIND, true, ceili(max_player_health * 0.15))
+		enemy.plastic_rapid_fire_shot = shot_index + 1
+		enemy.plastic_rapid_fire_tick = float(enemy.plastic_rapid_fire_tick) + PLASTIC_RAPID_FIRE_INTERVAL
+	return true
 
 func start_plastic_minion_wave(enemy: Dictionary) -> void:
 	if count_plastic_minions() > 0 or int(enemy.plastic_waves_spawned) >= 2:
@@ -2251,15 +2404,21 @@ func start_plastic_minion_wave(enemy: Dictionary) -> void:
 
 func spawn_plastic_minion_wave(kind: int) -> void:
 	for slot in range(20):
-		var column := slot % 5
-		spawn_plastic_minion(kind, 58.0 + column * 106.0, slot)
+		spawn_plastic_minion(kind, slot)
 
 
-func spawn_plastic_minion(kind: int, x: float, slot: int = 0) -> void:
+func spawn_plastic_minion(kind: int, slot: int = 0) -> void:
 	var radius: float = float([17.0, 20.0, 27.0][kind]) * ENEMY_SIZE_MULTIPLIER
 	var hp: int = int([1, 2, 5][kind])
 	var worth: int = int([100, 180, 420][kind])
-	var spawn_position := Vector2(clampf(x, radius + 8.0, GAME_SIZE.x - radius - 8.0), -radius - 12.0)
+	var columns := 4 if radius > 55.0 else 5
+	var column := slot % columns
+	var row := slot / columns
+	var edge := radius + 6.0
+	var spacing_x := (GAME_SIZE.x - edge * 2.0) / float(columns - 1)
+	var home_x := edge + float(column) * spacing_x
+	var target_y := radius + 72.0 + float(row) * (radius * 2.0 + 14.0)
+	var spawn_position := Vector2(home_x, -radius - 12.0 - float(row) * (radius * 2.0 + 14.0))
 	var visual: Sprite2D = ENEMY_SCENES[kind].instantiate()
 	apply_visual_override(visual, ENEMY_VISUAL_KEYS[kind])
 	fit_sprite_to_box(visual, Vector2(radius * 2.25, radius * 2.25))
@@ -2269,7 +2428,8 @@ func spawn_plastic_minion(kind: int, x: float, slot: int = 0) -> void:
 	enemies.append({"pos": spawn_position, "vel": Vector2.ZERO, "radius": radius,
 		"hp": hp, "max_hp": hp, "kind": kind, "tags": ["PlasticMinion"], "worth": worth,
 		"phase": rng.randf_range(0.0, TAU), "shoot": rng.randf_range(0.45, 1.0),
-		"plastic_slot": slot, "target_y": 115.0 + float(slot / 5) * 76.0,
+		"plastic_slot": slot, "plastic_home_x": home_x, "target_y": target_y,
+		"plastic_sway": 0.0 if radius > 55.0 else 6.0,
 		"fire_interval_multiplier": modifiers.fire_interval_multiplier,
 		"extra_projectiles": modifiers.extra_projectiles, "visual": visual})
 
@@ -2280,13 +2440,12 @@ func update_plastic_minion(enemy: Dictionary, delta: float) -> void:
 		enemy.pos.y = move_toward(float(enemy.pos.y), target_y, 205.0 * delta)
 	else:
 		var lane_phase := elapsed * (0.85 + float(enemy.kind) * 0.12) + float(enemy.phase)
-		var home_x := 58.0 + float(int(enemy.plastic_slot) % 5) * 106.0
-		enemy.pos.x = home_x + sin(lane_phase) * 34.0
-		enemy.pos.y = target_y + cos(lane_phase * 0.72) * 18.0
-	# Plastic minions are arena targets: they never leave the map on their own.
+		var sway := float(enemy.plastic_sway)
+		enemy.pos.x = float(enemy.plastic_home_x) + sin(lane_phase) * sway
+		enemy.pos.y = target_y + cos(lane_phase * 0.72) * sway
+	# The formation spacing is based on the enlarged radius, preventing persistent overlap jitter.
 	enemy.pos.x = clampf(float(enemy.pos.x), float(enemy.radius), GAME_SIZE.x - float(enemy.radius))
-	enemy.pos.y = clampf(float(enemy.pos.y), float(enemy.radius) + 70.0, GAME_SIZE.y - float(enemy.radius) - 80.0)
-
+	enemy.pos.y = clampf(float(enemy.pos.y), float(enemy.radius) + 70.0, GAME_SIZE.y - float(enemy.radius) - 40.0)
 
 func fire_red_guy_beyblades(enemy: Dictionary) -> void:
 	var origin: Vector2 = enemy.pos + Vector2(0.0, 42.0)
@@ -2299,7 +2458,8 @@ func fire_red_guy_beyblades(enemy: Dictionary) -> void:
 func get_named_boss_fire_delay(enemy: Dictionary) -> float:
 	match int(enemy.get("boss_id", level)):
 		1:
-			return 0.20 if float(enemy.hp) / float(enemy.max_hp) <= 0.5 else 1.05
+			var base_delay := 0.20 if float(enemy.hp) / float(enemy.max_hp) <= 0.5 else 1.05
+			return base_delay * THOMAS_FIRE_DELAY_MULTIPLIER
 		2:
 			return 1.25
 		3:
@@ -2328,6 +2488,11 @@ func update_boss_hazards(delta: float) -> void:
 				var finish := Vector2(GAME_SIZE.x * 0.72 if side < 0 else GAME_SIZE.x * 0.28, float(hazard.y))
 				if point_segment_distance(player_pos, start, finish) <= 42.0:
 					damage_player(ceili(max_player_health * 0.25))
+			elif hazard.kind == "rainbow_lights":
+				for column_x in hazard.columns:
+					if absf(player_pos.x - float(column_x)) <= 26.0:
+						damage_player(ceili(max_player_health * 0.20))
+						break
 			elif hazard.kind == "x_laser":
 				for segment in hazard.segments:
 					if point_segment_distance(player_pos, Vector2(segment[0]), Vector2(segment[1])) <= 17.0:
@@ -2437,7 +2602,14 @@ func resolve_collisions() -> void:
 			if enemies[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + enemies[i].radius - 4.0, 2.0):
 				var contact_damage: int = enemy_attack_damage(enemies[i].kind)
 				if enemies[i].kind == BOSS_KIND and int(enemies[i].get("boss_id", 0)) == 2 and (float(enemies[i].get("dash_timer", 0.0)) > 0.0 or float(enemies[i].get("frenzy_timer", 0.0)) > 0.0):
-					contact_damage = ceili(max_player_health * 0.30)
+					contact_damage = ceili(max_player_health * KHRAM_CONTACT_DAMAGE_RATIO)
+				if enemies[i].kind == BOSS_KIND and int(enemies[i].get("boss_id", 0)) == 3 and String(enemies[i].get("kung_dive_state", "")) == "dive" and not bool(enemies[i].get("kung_knockback_used", false)):
+					var knockback_direction := Vector2(enemies[i].get("kung_dash_direction", Vector2.DOWN)).normalized()
+					player_pos += knockback_direction * KUNG_PHASE_THREE_KNOCKBACK
+					player_pos.x = clampf(player_pos.x, 30.0, GAME_SIZE.x - 30.0)
+					player_pos.y = clampf(player_pos.y, 225.0, GAME_SIZE.y - 34.0)
+					pointer_target = player_pos
+					enemies[i].kung_knockback_used = true
 				if enemies[i].kind != BOSS_KIND and not enemy_has_tag(enemies[i], "PlasticMinion"):
 					spawn_explosion(enemies[i].pos, enemy_color(enemies[i].kind), 18)
 					free_enemy_visual(enemies[i])
@@ -2458,6 +2630,40 @@ func resolve_collisions() -> void:
 	if not game_over and not dialogue_active and not boss_active and score >= score_target_for_level():
 		spawn_boss()
 
+
+func resolve_combatant_overlaps() -> void:
+	# Scripted Plastic formations already use size-aware slots. Other ships are separated
+	# after movement so they cannot remain embedded in a boss or one another and jitter.
+	for first_index in range(enemies.size()):
+		var first: Dictionary = enemies[first_index]
+		if enemy_has_tag(first, "PlasticMinion"):
+			continue
+		for second_index in range(first_index + 1, enemies.size()):
+			var second: Dictionary = enemies[second_index]
+			if enemy_has_tag(second, "PlasticMinion"):
+				continue
+			var offset := Vector2(second.pos) - Vector2(first.pos)
+			var minimum_distance := (float(first.radius) + float(second.radius)) * 0.88
+			if offset.length_squared() >= minimum_distance * minimum_distance:
+				continue
+			var direction := offset.normalized()
+			if direction.length_squared() <= 0.001:
+				direction = Vector2.RIGHT.rotated(float(first_index + second_index) * 1.73)
+			var correction := direction * (minimum_distance - offset.length() + 1.0)
+			if first.kind == BOSS_KIND:
+				second.pos = Vector2(second.pos) + correction
+			elif second.kind == BOSS_KIND:
+				first.pos = Vector2(first.pos) - correction
+			else:
+				first.pos = Vector2(first.pos) - correction * 0.5
+				second.pos = Vector2(second.pos) + correction * 0.5
+			first.pos.x = clampf(float(first.pos.x), float(first.radius), GAME_SIZE.x - float(first.radius))
+			second.pos.x = clampf(float(second.pos.x), float(second.radius), GAME_SIZE.x - float(second.radius))
+	for enemy in enemies:
+		if enemy.kind == BOSS_KIND and int(enemy.get("boss_id", 0)) == 4:
+			update_se_na_visuals(enemy)
+		elif is_instance_valid(enemy.get("visual")):
+			enemy.visual.position = enemy.pos
 
 func damage_enemy(index: int, amount: float) -> void:
 	if index < 0 or index >= enemies.size() or amount <= 0.0:
@@ -2498,17 +2704,18 @@ func damage_enemy(index: int, amount: float) -> void:
 
 func process_named_boss_health_triggers(enemy: Dictionary, previous_ratio: float, current_ratio: float) -> void:
 	var boss_id := int(enemy.get("boss_id", 0))
-	if boss_id == 2 or boss_id == 4:
+	if boss_id == 2:
+		for threshold in [0.8, 0.6, 0.4, 0.2]:
+			if previous_ratio > threshold and current_ratio <= threshold:
+				enemy.dash_queue = int(enemy.dash_queue) + 1
+	elif boss_id == 4:
 		for step in range(9, 0, -1):
 			var threshold := float(step) / 10.0
-			if previous_ratio > threshold and current_ratio <= threshold:
-				if boss_id == 2:
-					enemy.dash_queue = int(enemy.dash_queue) + 1
-				elif not bool(enemy.se_na_phase_three):
-					start_se_na_x_laser(enemy)
+			if previous_ratio > threshold and current_ratio <= threshold and not bool(enemy.se_na_phase_three):
+				start_se_na_x_laser(enemy)
 	if boss_id == 2 and current_ratio <= 0.10 and not bool(enemy.frenzy_used):
 		enemy.frenzy_used = true
-		enemy.frenzy_timer = 5.0
+		enemy.frenzy_timer = KHRAM_FRENZY_DURATION
 		enemy.dash_timer = 0.0
 	if boss_id == 5 and stage_level >= 3 and current_ratio <= 0.50 and not bool(enemy.tentacle_barrier_spawned):
 		enemy.tentacle_barrier_spawned = true
@@ -2563,7 +2770,7 @@ func complete_endless_boss() -> void:
 
 
 func start_stage_intro() -> void:
-	var intro_lines: Array[Dictionary] = DIALOGUE_CONFIG.get_intro_lines(level)
+	var intro_lines: Array[Dictionary] = personalize_dialogue_lines(DIALOGUE_CONFIG.get_intro_lines(level))
 	if intro_lines.is_empty():
 		return
 	dialogue_active = true
@@ -2581,7 +2788,7 @@ func start_boss_dialogue() -> void:
 	# Stage เดิมคงอยู่ บทหลังการต่อสู้จะพาไป Phase 1-3 ตาม STORY
 	dialogue_active = true
 	dialogue_index = 0
-	dialogue_lines = DIALOGUE_CONFIG.get_lines(level, stage_level)
+	dialogue_lines = personalize_dialogue_lines(DIALOGUE_CONFIG.get_lines(level, stage_level))
 	dialogue_completion = "phase"
 	pointer_active = false
 	slow_mouse_held = false
@@ -2591,6 +2798,17 @@ func start_boss_dialogue() -> void:
 		complete_stage.call_deferred()
 		return
 	show_dialogue_line()
+
+
+func personalize_dialogue_lines(lines: Array[Dictionary]) -> Array[Dictionary]:
+	var portrait_path := ""
+	if is_instance_valid(player_sprite) and player_sprite.texture != null:
+		portrait_path = player_sprite.texture.resource_path
+	for line in lines:
+		if str(line.get("character_id", "")) == "johny":
+			line["speaker"] = "จอร์นนี่"
+			line["portrait"] = portrait_path
+	return lines
 
 
 func show_dialogue_line() -> void:
@@ -2656,6 +2874,7 @@ func complete_stage() -> void:
 		if is_story_nightmare() and level < FINAL_LEVEL:
 			level += 1
 			selected_stage = level
+			roll_stage_music_variant()
 			stage_level = 1
 			spawn_timer = 1.5
 			invulnerable_timer = maxf(invulnerable_timer, 1.75)
@@ -2864,7 +3083,8 @@ func draw_player_afterimages() -> void:
 
 
 func draw_boss_hazard(hazard: Dictionary) -> void:
-	var warning_ratio := clampf(float(hazard.get("warning", 0.0)) / (1.3 if hazard.kind == "side_tentacle" else 0.60), 0.0, 1.0)
+	var warning_duration := 1.3 if hazard.kind == "side_tentacle" else (SENA_RAINBOW_WARNING if hazard.kind == "rainbow_lights" else 0.60)
+	var warning_ratio := clampf(float(hazard.get("warning", 0.0)) / warning_duration, 0.0, 1.0)
 	if hazard.kind == "side_tentacle":
 		var side := int(hazard.side)
 		var y := float(hazard.y)
@@ -2879,6 +3099,16 @@ func draw_boss_hazard(hazard: Dictionary) -> void:
 			draw_set_transform(shake_offset + center, 0.0 if side < 0 else PI)
 			draw_texture_rect(LENS_TENTACLE_TEXTURE, Rect2(-size * 0.5, size), false)
 			draw_set_transform(shake_offset)
+	elif hazard.kind == "rainbow_lights":
+		var rainbow_colors := [Color("ff4b55"), Color("ffb340"), Color("fff15a"), Color("57e389"), Color("52b8ff"), Color("b06cff")]
+		for column_index in range(hazard.columns.size()):
+			var column_x := float(hazard.columns[column_index])
+			var beam_color: Color = rainbow_colors[(column_index * 2 + int(hazard.pattern)) % rainbow_colors.size()]
+			if float(hazard.warning) > 0.0:
+				draw_line(Vector2(column_x, 0.0), Vector2(column_x, GAME_SIZE.y), Color(beam_color, 0.18 + (1.0 - warning_ratio) * 0.28), 5.0)
+			else:
+				draw_line(Vector2(column_x, 0.0), Vector2(column_x, GAME_SIZE.y), Color(beam_color, 0.54), 52.0)
+				draw_line(Vector2(column_x, 0.0), Vector2(column_x, GAME_SIZE.y), Color(1.0, 1.0, 1.0, 0.92), 8.0)
 	elif hazard.kind == "x_laser":
 		for segment in hazard.segments:
 			var start := Vector2(segment[0])
