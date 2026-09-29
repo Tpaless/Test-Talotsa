@@ -906,6 +906,16 @@ func _run() -> void:
 	khram.pos = game.player_pos
 	game.resolve_collisions()
 	assert(game.player_health == game.max_player_health - ceili(game.max_player_health * game.KHRAM_CONTACT_DAMAGE_RATIO))
+	khram.frenzy_timer = 0.0
+	khram.dash_queue = 0
+	khram.dash_timer = 0.01
+	game.update_khram_boss(khram, 0.02)
+	assert(khram.khram_recovering)
+	var khram_miss_position := Vector2(khram.pos)
+	var khram_recover_distance := khram_miss_position.distance_to(Vector2(khram.khram_recover_target))
+	game.update_khram_boss(khram, 0.10)
+	assert(Vector2(khram.pos).distance_to(Vector2(khram.khram_recover_target)) < khram_recover_distance)
+	assert(Vector2(khram.pos).distance_to(khram_miss_position) <= game.KHRAM_RECOVER_SPEED * 0.10 + 0.1)
 	khram.hp = float(khram.max_hp) * 0.11
 	game.damage_enemy(0, float(khram.max_hp) * 0.02)
 	assert(khram.frenzy_used and is_equal_approx(float(khram.frenzy_timer), game.KHRAM_FRENZY_DURATION))
@@ -1051,10 +1061,10 @@ func _run() -> void:
 		assert(tentacle.kind == "side_tentacle" and is_equal_approx(float(tentacle.warning), 1.3))
 		assert(abs(int(tentacle.side)) == 1)
 	assert(game.LENS_TENTACLE_TEXTURE.resource_path == "res://assets/sprites/boss_lens_tentacle.png")
-	assert(game.LENS_WALL_TEXTURE.resource_path == "res://assets/sprites/boss_lens_wall.png")
 	lens.hp = float(lens.max_hp) * 0.51
 	game.damage_enemy(0, float(lens.max_hp) * 0.02)
-	assert(lens.tentacle_barrier_hp > 0.0)
+	assert(is_equal_approx(float(lens.tentacle_barrier_max_hp), maxf(12.0, float(lens.max_hp) * game.LENS_BARRIER_HP_RATIO)))
+	assert(game.LENS_BARRIER_HP_RATIO > 0.35)
 	var lens_hp_behind_barrier := float(lens.hp)
 	var barrier_before := float(lens.tentacle_barrier_hp)
 	game.damage_enemy(0, 3.0)
@@ -1091,7 +1101,7 @@ func _run() -> void:
 		var phase_modifiers: Dictionary = game.skill_modifiers_for(phase_plastic.visual)
 		var base_plastic_hp: int = game.BOSS_HP_BASE + 6 * game.BOSS_HP_PER_LEVEL + (plastic_phase - 1) * 16
 		var modified_plastic_hp := ceili(base_plastic_hp * float(phase_modifiers.max_health_multiplier) * float(game.difficulty_multiplier))
-		var expected_plastic_hp := ceili(float(modified_plastic_hp) * float(game.PLASTIC_PHASE_HP_MULTIPLIERS[plastic_phase - 1]))
+		var expected_plastic_hp := ceili(float(modified_plastic_hp) * float(game.PLASTIC_PHASE_HP_MULTIPLIERS[plastic_phase - 1]) * game.PLASTIC_HEALTH_MULTIPLIER)
 		assert(phase_plastic.max_hp == expected_plastic_hp)
 
 	# Plastic Man: 20 ตัวต่อ Wave, 2 Wave ที่ HP 100/50%; บอสอมตะและลูกสมุนห้ามออกสนาม
@@ -1115,6 +1125,35 @@ func _run() -> void:
 		game.free_enemy_visual(game.enemies[minion_index])
 		game.enemies.remove_at(minion_index)
 	assert(game.count_plastic_minions() == 0)
+	var mimic_order: Array = plastic_man.plastic_mimic_order.duplicate()
+	var sorted_mimic_order: Array = mimic_order.duplicate()
+	sorted_mimic_order.sort()
+	assert(mimic_order.size() == 5 and sorted_mimic_order == [1, 2, 3, 4, 5])
+	assert(game.get_plastic_mimic_phase(1.0) == 1 and game.get_plastic_mimic_phase(0.79) == 2)
+	assert(game.get_plastic_mimic_phase(0.59) == 3 and game.get_plastic_mimic_phase(0.39) == 4 and game.get_plastic_mimic_phase(0.19) == 5)
+	plastic_man.plastic_mimic_order = [1, 2, 3, 4, 5]
+	for mimic_phase in range(1, 6):
+		game.enemy_bullets.clear()
+		game.boss_hazards.clear()
+		plastic_man.plastic_mimic_state = ""
+		plastic_man.plastic_mimic_phase = 0
+		plastic_man.hp = float(plastic_man.max_hp) * (1.0 - float(mimic_phase - 1) * 0.20 - 0.01)
+		game.update_plastic_mimic_skill(plastic_man, 0.0)
+		plastic_man.plastic_mimic_timer = 0.0
+		game.update_plastic_mimic_skill(plastic_man, 0.01)
+		assert(int(plastic_man.plastic_mimic_phase) == mimic_phase)
+		if mimic_phase == 1:
+			assert(game.enemy_bullets.size() == 12)
+		elif mimic_phase == 2:
+			assert(plastic_man.plastic_mimic_state == "dash")
+		elif mimic_phase == 3:
+			assert(game.enemy_bullets.size() == 4)
+		elif mimic_phase == 4:
+			assert(game.boss_hazards.size() == 1 and game.boss_hazards[0].kind == "rainbow_lights")
+		elif mimic_phase == 5:
+			assert(game.boss_hazards.size() >= 2 and game.boss_hazards[0].kind == "side_tentacle")
+		assert(float(plastic_man.plastic_mimic_timer) >= game.PLASTIC_MIMIC_MIN_INTERVAL)
+	plastic_man.hp = protected_hp
 	game.damage_enemy(0, protected_hp * 0.60)
 	assert(is_equal_approx(float(plastic_man.hp), float(plastic_man.max_hp) * 0.50))
 	assert(plastic_man.plastic_waves_spawned == 2 and game.count_plastic_minions() == 20)

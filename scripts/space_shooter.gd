@@ -36,12 +36,17 @@ const KHRAM_DASH_SPEED := 520.0
 const KHRAM_DASH_DURATION := 0.72
 const KHRAM_CONTACT_DAMAGE_RATIO := 0.20
 const KHRAM_FRENZY_DURATION := 3.0
+const KHRAM_RECOVER_SPEED := 360.0
+const LENS_BARRIER_HP_RATIO := 0.60
 const KUNG_PHASE_THREE_COOLDOWN := 2.0
 const KUNG_PHASE_THREE_DASH_SPEED := 900.0
 const KUNG_PHASE_THREE_KNOCKBACK := 165.0
 const STAGE_SIX_WAVE_SIZE := 10
 const STAGE_SIX_WAVE_INTERVAL := 3.0
 const PLASTIC_PHASE_HP_MULTIPLIERS := [1.10, 1.40, 1.60]
+const PLASTIC_HEALTH_MULTIPLIER := 0.80
+const PLASTIC_MIMIC_MIN_INTERVAL := 2.2
+const PLASTIC_MIMIC_MAX_INTERVAL := 4.8
 const PLASTIC_MOVE_SPEED := 1.25
 const PLASTIC_DASH_SPEED := 680.0
 const PLASTIC_DASH_DURATION := 1.10
@@ -69,7 +74,6 @@ const NA_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/boss_na_attac
 const KUNG_IDLE_TEXTURE: Texture2D = preload("res://assets/sprites/boss_kung_idle.png")
 const KUNG_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/boss_kung_attack.png")
 const LENS_TENTACLE_TEXTURE: Texture2D = preload("res://assets/sprites/boss_lens_tentacle.png")
-const LENS_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/boss_lens_wall.png")
 const MUSIC_TRACKS := {
 	"menu": preload("res://Sound/MENU_THEME.mp3"),
 	"endless": preload("res://Sound/Endless_Mode_&_Boss_Puma.mp3"),
@@ -1585,6 +1589,15 @@ func spawn_enemy(wave_slot: int = -1) -> void:
 	})
 
 
+func create_plastic_skill_order() -> Array[int]:
+	var order: Array[int] = [1, 2, 3, 4, 5]
+	for order_index in range(order.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, order_index)
+		var held_skill := order[order_index]
+		order[order_index] = order[swap_index]
+		order[swap_index] = held_skill
+	return order
+
 func spawn_boss() -> void:
 	boss_active = true
 	spawn_timer = 1.5
@@ -1602,7 +1615,7 @@ func spawn_boss() -> void:
 	var modifiers: Dictionary = skill_modifiers_for(boss_visual)
 	hp = ceili(hp * modifiers.max_health_multiplier * float(difficulty_multiplier))
 	if boss_stage == 6:
-		hp = ceili(float(hp) * float(PLASTIC_PHASE_HP_MULTIPLIERS[clampi(stage_level - 1, 0, 2)]))
+		hp = ceili(float(hp) * float(PLASTIC_PHASE_HP_MULTIPLIERS[clampi(stage_level - 1, 0, 2)]) * PLASTIC_HEALTH_MULTIPLIER)
 	var boss_data: Dictionary = {
 		"pos": spawn_position,
 		"vel": Vector2.ZERO,
@@ -1624,6 +1637,8 @@ func spawn_boss() -> void:
 		"dash_velocity": Vector2.ZERO,
 		"frenzy_timer": 0.0,
 		"frenzy_used": false,
+		"khram_recovering": false,
+		"khram_recover_target": Vector2.ZERO,
 		"kung_skill_cooldown": 1.6,
 		"kung_wave_time": 0.0,
 		"kung_wave_tick": 0.0,
@@ -1658,6 +1673,12 @@ func spawn_boss() -> void:
 		"plastic_rapid_fire_timer": 0.0,
 		"plastic_rapid_fire_tick": 0.0,
 		"plastic_rapid_fire_shot": 0,
+		"plastic_mimic_order": create_plastic_skill_order(),
+		"plastic_mimic_phase": 1,
+		"plastic_mimic_timer": rng.randf_range(0.8, 1.8),
+		"plastic_mimic_state": "",
+		"plastic_mimic_velocity": Vector2.ZERO,
+		"plastic_mimic_dash_timer": 0.0,
 		"idle_texture": boss_visual.texture,
 		"shoot": (8.0 if boss_stage == 7 else 1.0 * modifiers.fire_interval_multiplier) / float(difficulty_multiplier),
 		"fire_interval_multiplier": modifiers.fire_interval_multiplier,
@@ -2074,11 +2095,12 @@ func fire_thomas_cross_burst(enemy: Dictionary) -> void:
 
 
 func update_khram_boss(enemy: Dictionary, delta: float) -> bool:
+	var recovering := bool(enemy.khram_recovering)
 	if float(enemy.frenzy_timer) > 0.0:
 		enemy.frenzy_timer = maxf(0.0, float(enemy.frenzy_timer) - delta)
-		if float(enemy.dash_timer) <= 0.0:
+		if float(enemy.dash_timer) <= 0.0 and not recovering:
 			start_khram_dash(enemy, false)
-	elif float(enemy.dash_timer) <= 0.0 and int(enemy.dash_queue) > 0:
+	elif float(enemy.dash_timer) <= 0.0 and int(enemy.dash_queue) > 0 and not recovering:
 		start_khram_dash(enemy, true)
 	if float(enemy.dash_timer) > 0.0:
 		enemy.dash_timer = maxf(0.0, float(enemy.dash_timer) - delta)
@@ -2086,6 +2108,17 @@ func update_khram_boss(enemy: Dictionary, delta: float) -> bool:
 		enemy.pos.x = clampf(float(enemy.pos.x), float(enemy.radius), GAME_SIZE.x - float(enemy.radius))
 		enemy.pos.y = clampf(float(enemy.pos.y), 100.0, GAME_SIZE.y - 90.0)
 		enemy.visual.rotation = Vector2(enemy.dash_velocity).angle() + PI * 0.5
+		if float(enemy.dash_timer) <= 0.0:
+			enemy.khram_recovering = true
+			enemy.khram_recover_target = Vector2(GAME_SIZE.x * 0.5 + sin(elapsed * KHRAM_SWAY_SPEED + float(enemy.phase)) * 190.0, 250.0)
+		return true
+	if bool(enemy.khram_recovering):
+		var recover_target := Vector2(enemy.khram_recover_target)
+		enemy.pos = Vector2(enemy.pos).move_toward(recover_target, KHRAM_RECOVER_SPEED * delta)
+		enemy.visual.rotation = lerp_angle(float(enemy.visual.rotation), 0.0, minf(1.0, delta * 8.0))
+		if Vector2(enemy.pos).distance_to(recover_target) <= 6.0:
+			enemy.pos = recover_target
+			enemy.khram_recovering = false
 		return true
 	move_boss_sway(enemy, delta, 250.0, KHRAM_SWAY_SPEED, 190.0)
 	enemy.visual.rotation = 0.0
@@ -2099,10 +2132,10 @@ func start_khram_dash(enemy: Dictionary, consume_queue: bool) -> void:
 	var direction: Vector2 = (target - Vector2(enemy.pos)).normalized()
 	enemy.dash_velocity = direction * KHRAM_DASH_SPEED
 	enemy.dash_timer = KHRAM_DASH_DURATION
+	enemy.khram_recovering = false
 	if consume_queue:
 		enemy.dash_queue = maxi(0, int(enemy.dash_queue) - 1)
 	spawn_sparks(enemy.pos, Color("55d8ff"), 18, 190.0)
-
 
 func set_kung_attacking(enemy: Dictionary, attacking: bool) -> void:
 	enemy.visual.texture = KUNG_ATTACK_TEXTURE if attacking else KUNG_IDLE_TEXTURE
@@ -2334,6 +2367,9 @@ func update_plastic_man_boss(enemy: Dictionary, delta: float) -> bool:
 	var rapid_fire_active := update_plastic_rapid_fire(enemy, delta)
 	if update_plastic_dash(enemy, delta):
 		return true
+	var mimic_active := update_plastic_mimic_skill(enemy, delta)
+	if mimic_active:
+		return true
 	move_boss_sway(enemy, delta, 235.0, PLASTIC_MOVE_SPEED, 125.0)
 	var minions_alive := count_plastic_minions()
 	enemy.plastic_wave_active = minions_alive > 0
@@ -2347,6 +2383,55 @@ func update_plastic_man_boss(enemy: Dictionary, delta: float) -> bool:
 		return true
 	return rapid_fire_active
 
+
+func get_plastic_mimic_phase(health_ratio: float) -> int:
+	return clampi(int(floor((1.0 - clampf(health_ratio, 0.0, 1.0)) * 5.0)) + 1, 1, 5)
+
+
+func update_plastic_mimic_skill(enemy: Dictionary, delta: float) -> bool:
+	var mimic_phase := get_plastic_mimic_phase(float(enemy.hp) / maxf(1.0, float(enemy.max_hp)))
+	if mimic_phase != int(enemy.plastic_mimic_phase):
+		enemy.plastic_mimic_phase = mimic_phase
+		enemy.plastic_mimic_timer = rng.randf_range(0.45, 1.25)
+		enemy.plastic_mimic_state = ""
+	var state := String(enemy.plastic_mimic_state)
+	if state == "dash":
+		enemy.plastic_mimic_dash_timer = maxf(0.0, float(enemy.plastic_mimic_dash_timer) - delta)
+		enemy.pos += Vector2(enemy.plastic_mimic_velocity) * delta
+		enemy.pos.x = clampf(float(enemy.pos.x), float(enemy.radius), GAME_SIZE.x - float(enemy.radius))
+		enemy.pos.y = clampf(float(enemy.pos.y), 100.0, GAME_SIZE.y - 90.0)
+		if float(enemy.plastic_mimic_dash_timer) <= 0.0:
+			enemy.plastic_mimic_state = "recover"
+		return true
+	if state == "recover":
+		var home := Vector2(GAME_SIZE.x * 0.5, 235.0)
+		enemy.pos = Vector2(enemy.pos).move_toward(home, PLASTIC_DASH_SPEED * 0.65 * delta)
+		if Vector2(enemy.pos).distance_to(home) <= 6.0:
+			enemy.pos = home
+			enemy.plastic_mimic_state = ""
+		return true
+	enemy.plastic_mimic_timer = float(enemy.plastic_mimic_timer) - delta
+	if float(enemy.plastic_mimic_timer) > 0.0:
+		return false
+	var skill_order: Array = enemy.plastic_mimic_order
+	var borrowed_boss := int(skill_order[mimic_phase - 1])
+	match borrowed_boss:
+		1:
+			enemy.spin_angle = rng.randf_range(0.0, TAU)
+			fire_thomas_cross_burst(enemy)
+		2:
+			var direction := (player_pos - Vector2(enemy.pos)).normalized()
+			enemy.plastic_mimic_velocity = (direction if direction.length_squared() > 0.001 else Vector2.DOWN) * KHRAM_DASH_SPEED
+			enemy.plastic_mimic_dash_timer = KHRAM_DASH_DURATION
+			enemy.plastic_mimic_state = "dash"
+		3:
+			fire_kung_zigzag_row(enemy)
+		4:
+			start_se_na_rainbow_lights(enemy)
+		5:
+			spawn_lens_tentacles(rng.randi_range(2, 3))
+	enemy.plastic_mimic_timer = rng.randf_range(PLASTIC_MIMIC_MIN_INTERVAL, PLASTIC_MIMIC_MAX_INTERVAL)
+	return borrowed_boss == 2
 
 func start_plastic_man_assault(enemy: Dictionary) -> void:
 	enemy.plastic_dash_used = true
@@ -2719,7 +2804,7 @@ func process_named_boss_health_triggers(enemy: Dictionary, previous_ratio: float
 		enemy.dash_timer = 0.0
 	if boss_id == 5 and stage_level >= 3 and current_ratio <= 0.50 and not bool(enemy.tentacle_barrier_spawned):
 		enemy.tentacle_barrier_spawned = true
-		enemy.tentacle_barrier_max_hp = maxf(12.0, float(enemy.max_hp) * 0.35)
+		enemy.tentacle_barrier_max_hp = maxf(12.0, float(enemy.max_hp) * LENS_BARRIER_HP_RATIO)
 		enemy.tentacle_barrier_hp = float(enemy.tentacle_barrier_max_hp)
 		spawn_explosion(enemy.pos, Color("a76dff"), 26)
 
@@ -3045,9 +3130,13 @@ func draw_world() -> void:
 			draw_arc(enemy.pos, enemy.radius + 13.0 + charge * 12.0, 0.0, TAU, 48, Color(1.0, 0.82, 0.4, 0.45 + charge * 0.5), 4.0)
 		if enemy.kind == BOSS_KIND:
 			if int(enemy.get("boss_id", 0)) == 5 and float(enemy.get("tentacle_barrier_hp", 0.0)) > 0.0:
-				# Lens raises two persistent tentacle walls from the arena sides.
-				draw_texture_rect(LENS_WALL_TEXTURE, Rect2(0.0, 230.0, 74.0, 420.0), false)
-				draw_texture_rect(LENS_WALL_TEXTURE, Rect2(GAME_SIZE.x - 74.0, 230.0, 74.0, 420.0), false)
+				# Two boss_lens_tentacle models form opposing horizontal walls.
+				var wall_size := Vector2(360.0, 128.0)
+				draw_set_transform(shake_offset + Vector2(135.0, 350.0))
+				draw_texture_rect(LENS_TENTACLE_TEXTURE, Rect2(-wall_size * 0.5, wall_size), false)
+				draw_set_transform(shake_offset + Vector2(GAME_SIZE.x - 135.0, 525.0), PI)
+				draw_texture_rect(LENS_TENTACLE_TEXTURE, Rect2(-wall_size * 0.5, wall_size), false)
+				draw_set_transform(shake_offset)
 				var barrier_ratio: float = float(enemy.tentacle_barrier_hp) / maxf(1.0, float(enemy.tentacle_barrier_max_hp))
 				draw_rect(Rect2(Vector2(82.0, 205.0), Vector2(GAME_SIZE.x - 164.0, 9.0)), Color("29133d"))
 				draw_rect(Rect2(Vector2(82.0, 205.0), Vector2((GAME_SIZE.x - 164.0) * barrier_ratio, 9.0)), Color("c08cff"))
