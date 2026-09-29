@@ -19,7 +19,7 @@ const ENDLESS_BOSS_SCORE_STEP := 5000
 const MAX_SCOREBOARD_ENTRIES := 5
 const COINS_PER_BOSS := 1
 const SEA_TOKENS_PER_CLEAR := 3 # compatibility: Story มีบอส 3 Phase จึงได้รวม 3 Coin
-const VIPER_ENDLESS_UNLOCK_SCORE := 30000
+const VIPER_ENDLESS_UNLOCK_SCORE := 70000
 const SPECIAL_BOSS_LEVEL := 7
 const STAGE_SELECT_COUNT := SPECIAL_BOSS_LEVEL
 const SPECIAL_STAGE_SCORE_TARGET := 5000
@@ -1012,7 +1012,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				restart_current_run()
 			else:
 				show_character_select()
-		elif event.keycode == KEY_P and not game_over:
+		elif event.keycode in [KEY_ESCAPE, KEY_P] and not game_over:
 			paused = not paused
 			pointer_active = false
 			queue_redraw()

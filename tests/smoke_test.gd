@@ -273,6 +273,9 @@ func _run() -> void:
 	assert(game.DIALOGUE_CONFIG.get_lines(1, 1)[1].speaker == "จอร์นนี่")
 	assert(game.enemies.size() == 1)
 	assert(background.active_layers.size() == 3)
+	assert(background.active_layers[0].texture.resource_path == "res://assets/backgrounds/layer_1_space.png")
+	assert(game.get_node("HUD/Renderer").MENU_BACKGROUND_TEXTURE.resource_path == "res://assets/backgrounds/Menu.png")
+	assert(game.VIPER_ENDLESS_UNLOCK_SCORE == 70000)
 	var health_before_escape: int = game.player_health
 	var escaped_enemy: Dictionary = game.enemies[0]
 	escaped_enemy.pos = Vector2(100.0, game.GAME_SIZE.y + escaped_enemy.radius - 1.0)
@@ -403,6 +406,14 @@ func _run() -> void:
 	game._input(pause_touch)
 	pause_touch.pressed = true
 	game._input(pause_touch)
+	assert(not game.paused)
+	var pause_key := InputEventKey.new()
+	pause_key.keycode = KEY_ESCAPE
+	pause_key.pressed = true
+	game._unhandled_input(pause_key)
+	assert(game.paused)
+	pause_key.keycode = KEY_P
+	game._unhandled_input(pause_key)
 	assert(not game.paused)
 	var expected_boss_names := ["Thomas Frenzy", "Thomas Frenzy", "Thomas Frenzy"]
 	var expected_extra_shots := [0, 0, 0]

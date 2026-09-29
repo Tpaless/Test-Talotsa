@@ -1,6 +1,7 @@
 extends Node2D
 
 const SCREEN_SIZE := Vector2(540.0, 960.0)
+const MENU_BACKGROUND_TEXTURE: Texture2D = preload("res://assets/backgrounds/Menu.png")
 # Typography อ้างอิง PROJECT _ DESIGN/User Design Home Page And Theme.png
 # ขาวอมฟ้าด้านบน + ฟ้าอ่อนด้านล่าง, ขอบกรมท่าซ้อนขอบดำ และฐานเงาแข็งแบบพิกเซล
 const MENU_TEXT_TOP := Color("ffffff")
@@ -166,18 +167,8 @@ func draw_home_menu() -> void:
 
 
 func draw_underwater_home_background() -> void:
-	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color("032a64"))
-	for band_index in range(8):
-		var band_rect := Rect2(0.0, float(band_index) * 120.0, SCREEN_SIZE.x, 122.0)
-		draw_rect(band_rect, Color(0.0, 0.20 + band_index * 0.012, 0.46 - band_index * 0.02, 0.23))
-	draw_colored_polygon(PackedVector2Array([Vector2(72.0, 0.0), Vector2(160.0, 0.0), Vector2(260.0, 650.0), Vector2(205.0, 650.0)]), Color(0.34, 0.94, 1.0, 0.08))
-	draw_colored_polygon(PackedVector2Array([Vector2(360.0, 0.0), Vector2(438.0, 0.0), Vector2(325.0, 650.0), Vector2(278.0, 650.0)]), Color(0.34, 0.94, 1.0, 0.07))
-	for bubble_index in range(14):
-		var bubble_x := fmod(41.0 + bubble_index * 91.0, 520.0) + 10.0
-		var bubble_y := fmod(128.0 + bubble_index * 137.0 - game.menu_animation_time * (5.0 + bubble_index % 3), 900.0)
-		var bubble_radius := 4.0 + float(bubble_index % 4) * 2.0
-		draw_arc(Vector2(bubble_x, bubble_y), bubble_radius, 0.0, TAU, 20, Color(0.68, 0.98, 1.0, 0.62), 2.0)
-	draw_colored_polygon(PackedVector2Array([Vector2(0.0, 912.0), Vector2(90.0, 878.0), Vector2(190.0, 921.0), Vector2(300.0, 888.0), Vector2(410.0, 925.0), Vector2(540.0, 884.0), Vector2(540.0, 960.0), Vector2(0.0, 960.0)]), Color("063357"))
+	draw_texture_rect(MENU_BACKGROUND_TEXTURE, Rect2(Vector2.ZERO, SCREEN_SIZE), false)
+	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.0, 0.05, 0.11, 0.13))
 
 
 func draw_rounded_panel(rect: Rect2, fill: Color, border: Color, radius: int, border_width: int = 2) -> void:

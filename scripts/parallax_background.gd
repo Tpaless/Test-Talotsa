@@ -11,7 +11,7 @@ const SCREEN_SIZE := Vector2(540.0, 960.0)
 const LAYER_CONFIGS: Array[Dictionary] = [
 	{
 		"layer": 1,
-		"texture": "res://assets/backgrounds/layer_1_space.svg",
+		"texture": "res://assets/backgrounds/layer_1_space.png",
 		"speed": 5.0,
 		"opacity": 1.0,
 		"enabled": true

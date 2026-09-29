@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Use `Menu.png` for the menu background and the new PNG for the first parallax layer.
+- Allow Escape or P to pause and resume during play.
+- Raise Straw Hat Johny's Endless unlock score to 70,000.
+
 ## [0.9.9] - 2026-09-29
 
 - Play `Sound/Explosion.wav` on every enemy hit, including boss shields and special attacks.
