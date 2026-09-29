@@ -5,6 +5,7 @@
 # Local exports and temporary files
 /build/
 /exports/
+/Builds/
 *.tmp
 /Compress File/
 *.log

@@ -1,6 +1,10 @@
 extends Node2D
 
 const GAME_SIZE := Vector2(540.0, 960.0)
+const TARGET_FPS := 60
+const MAX_DESKTOP_PARTICLES := 360
+const MAX_WEB_PARTICLES := 280
+const MAX_MOBILE_PARTICLES := 220
 const PLAYER_RADIUS := 18.0
 const BOSS_KIND := 3
 const ENEMY_SIZE_MULTIPLIER := 2.55 # previous 150% size, enlarged by another 70%
@@ -282,6 +286,7 @@ var master_volume := 0.90
 var music_volume := 0.78
 var effect_volume := 0.86
 var current_music_key := ""
+var audio_unlocked := false
 var settings_drag_index := -1
 var clear_data_confirmation_visible := false
 var lens_uses_narkom := false
@@ -314,6 +319,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	Engine.max_fps = TARGET_FPS
 	rng.randomize()
 	load_item_collection()
 	apply_audio_levels()
@@ -488,6 +494,28 @@ func play_effect(stream: AudioStream) -> void:
 	effect_player.stream = stream
 	apply_audio_levels()
 	effect_player.play()
+
+
+func is_audio_activation_event(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		return event.pressed
+	if event is InputEventScreenTouch:
+		return event.pressed
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	return false
+
+
+func unlock_web_audio_from_input(event: InputEvent) -> void:
+	if audio_unlocked or not is_audio_activation_event(event):
+		return
+	audio_unlocked = true
+	if not OS.has_feature("web"):
+		return
+	# Browsers suspend their audio context until the first gesture inside the game iframe.
+	# Restarting here makes long streamed music audible on itch.io after that gesture.
+	current_music_key = ""
+	update_audio_track(true)
 
 
 func get_music_key() -> String:
@@ -1210,6 +1238,7 @@ func handle_menu_swipe(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	unlock_web_audio_from_input(event)
 	if event is InputEventKey and (event.keycode == KEY_SHIFT or event.physical_keycode == KEY_SHIFT):
 		slow_key_held = event.pressed
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_W, KEY_A, KEY_S, KEY_D, KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT] and pointer_index < 0:
@@ -1377,7 +1406,8 @@ func _process(delta: float) -> void:
 	if shake_timer > 0.0:
 		shake_offset = Vector2(rng.randf_range(-5.0, 5.0), rng.randf_range(-4.0, 4.0))
 	character_layer.position = shake_offset
-	music_player.stream_paused = paused
+	if music_player.stream_paused != paused:
+		music_player.stream_paused = paused
 	update_audio_track()
 	queue_redraw()
 
@@ -1694,23 +1724,25 @@ func spawn_boss() -> void:
 
 func update_bullets(delta: float) -> void:
 	for i in range(bullets.size() - 1, -1, -1):
-		if bullets[i].get("homing", false):
+		var bullet: Dictionary = bullets[i]
+		if bullet.get("homing", false):
 			var target_index := -1
 			var nearest_distance := INF
+			var hit_ids: Array = bullet.get("hit_ids", [])
 			for enemy_index in range(enemies.size()):
-				if bullets[i].get("hit_ids", []).has(enemies[enemy_index].visual.get_instance_id()):
+				if hit_ids.has(enemies[enemy_index].visual.get_instance_id()):
 					continue
-				var distance: float = bullets[i].pos.distance_squared_to(enemies[enemy_index].pos)
+				var distance: float = bullet.pos.distance_squared_to(enemies[enemy_index].pos)
 				if distance < nearest_distance:
 					nearest_distance = distance
 					target_index = enemy_index
 			if target_index >= 0:
-				var target_direction: Vector2 = (enemies[target_index].pos - bullets[i].pos).normalized()
-				var desired_velocity: Vector2 = target_direction * bullets[i].vel.length()
-				bullets[i].vel = bullets[i].vel.move_toward(desired_velocity, float(player_stats.homing_turn_speed) * delta)
-		bullets[i].pos += bullets[i].vel * delta
-		bullets[i].life = float(bullets[i].get("life", 4.0)) - delta
-		if bullets[i].life <= 0.0 or bullets[i].pos.y < -30.0 or bullets[i].pos.y > GAME_SIZE.y + 30.0 or bullets[i].pos.x < -30.0 or bullets[i].pos.x > GAME_SIZE.x + 30.0:
+				var target_direction: Vector2 = (enemies[target_index].pos - bullet.pos).normalized()
+				var desired_velocity: Vector2 = target_direction * bullet.vel.length()
+				bullet.vel = bullet.vel.move_toward(desired_velocity, float(player_stats.homing_turn_speed) * delta)
+		bullet.pos += bullet.vel * delta
+		bullet.life = float(bullet.get("life", 4.0)) - delta
+		if bullet.life <= 0.0 or bullet.pos.y < -30.0 or bullet.pos.y > GAME_SIZE.y + 30.0 or bullet.pos.x < -30.0 or bullet.pos.x > GAME_SIZE.x + 30.0:
 			bullets.remove_at(i)
 	for i in range(enemy_bullets.size() - 1, -1, -1):
 		enemy_bullets[i].life = float(enemy_bullets[i].get("life", 8.0)) - delta
@@ -2648,24 +2680,26 @@ func update_pickups(delta: float) -> void:
 
 func resolve_collisions() -> void:
 	for bullet_index in range(bullets.size() - 1, -1, -1):
+		var bullet: Dictionary = bullets[bullet_index]
 		var hit := false
 		for enemy_index in range(enemies.size() - 1, -1, -1):
 			var enemy = enemies[enemy_index]
 			var enemy_id: int = enemy.visual.get_instance_id()
-			if bullets[bullet_index].get("hit_ids", []).has(enemy_id):
+			if bullet.get("hit_ids", []).has(enemy_id):
 				continue
-			var bullet_radius: float = float(bullets[bullet_index].get("radius", 5.0))
-			if bullets[bullet_index].pos.distance_squared_to(enemy.pos) < pow(float(enemy.radius) + bullet_radius, 2.0):
-				spawn_sparks(bullets[bullet_index].pos, Color("ffd166"), 5, 145.0)
-				if bullets[bullet_index].has("pierce_remaining"):
-					bullets[bullet_index].hit_ids.append(enemy_id)
-					bullets[bullet_index].pierce_remaining -= 1
-					hit = bullets[bullet_index].pierce_remaining <= 0
+			var bullet_radius: float = float(bullet.get("radius", 5.0))
+			var collision_radius := float(enemy.radius) + bullet_radius
+			if bullet.pos.distance_squared_to(enemy.pos) < collision_radius * collision_radius:
+				spawn_sparks(bullet.pos, Color("ffd166"), 5, 145.0)
+				if bullet.has("pierce_remaining"):
+					bullet.hit_ids.append(enemy_id)
+					bullet.pierce_remaining -= 1
+					hit = bullet.pierce_remaining <= 0
 				else:
 					hit = true
-				var damage: float = float(bullets[bullet_index].get("damage", 1.0))
+				var damage: float = float(bullet.get("damage", 1.0))
 				if enemy.kind == BOSS_KIND:
-					damage *= float(bullets[bullet_index].get("boss_damage_multiplier", 1.0))
+					damage *= float(bullet.get("boss_damage_multiplier", 1.0))
 				damage_enemy(enemy_index, damage)
 				if hit or game_over or dialogue_active:
 					break
@@ -2676,7 +2710,8 @@ func resolve_collisions() -> void:
 
 	if invulnerable_timer <= 0.0:
 		for i in range(enemy_bullets.size() - 1, -1, -1):
-			if enemy_bullets[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + enemy_bullets[i].radius, 2.0):
+			var hit_radius: float = PLAYER_RADIUS + float(enemy_bullets[i].radius)
+			if enemy_bullets[i].pos.distance_squared_to(player_pos) < hit_radius * hit_radius:
 				var incoming_damage: int = int(enemy_bullets[i].get("damage", 5))
 				enemy_bullets.remove_at(i)
 				damage_player(incoming_damage)
@@ -2684,7 +2719,8 @@ func resolve_collisions() -> void:
 
 	if invulnerable_timer <= 0.0:
 		for i in range(enemies.size() - 1, -1, -1):
-			if enemies[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + enemies[i].radius - 4.0, 2.0):
+			var hit_radius: float = PLAYER_RADIUS + float(enemies[i].radius) - 4.0
+			if enemies[i].pos.distance_squared_to(player_pos) < hit_radius * hit_radius:
 				var contact_damage: int = enemy_attack_damage(enemies[i].kind)
 				if enemies[i].kind == BOSS_KIND and int(enemies[i].get("boss_id", 0)) == 2 and (float(enemies[i].get("dash_timer", 0.0)) > 0.0 or float(enemies[i].get("frenzy_timer", 0.0)) > 0.0):
 					contact_damage = ceili(max_player_health * KHRAM_CONTACT_DAMAGE_RATIO)
@@ -2705,7 +2741,8 @@ func resolve_collisions() -> void:
 				break
 
 	for i in range(pickups.size() - 1, -1, -1):
-		if pickups[i].pos.distance_squared_to(player_pos) < pow(PLAYER_RADIUS + POTION_PICKUP_RADIUS, 2.0):
+		var pickup_radius := PLAYER_RADIUS + POTION_PICKUP_RADIUS
+		if pickups[i].pos.distance_squared_to(player_pos) < pickup_radius * pickup_radius:
 			player_health = mini(max_player_health, player_health + ceili(max_player_health * POTION_HEAL_RATIO))
 			score += 75
 			refresh_stage_level()
@@ -3027,7 +3064,14 @@ func finish_game(won: bool) -> void:
 
 
 func spawn_sparks(origin: Vector2, color: Color, count: int, speed: float) -> void:
-	for i in range(count):
+	var particle_limit := MAX_MOBILE_PARTICLES if OS.has_feature("mobile") else (MAX_WEB_PARTICLES if OS.has_feature("web") else MAX_DESKTOP_PARTICLES)
+	var spawn_count := mini(count, particle_limit)
+	var overflow := particles.size() + spawn_count - particle_limit
+	if overflow >= particles.size():
+		particles.clear()
+	elif overflow > 0:
+		particles = particles.slice(overflow)
+	for i in range(spawn_count):
 		var direction := Vector2.RIGHT.rotated(rng.randf_range(0.0, TAU))
 		particles.append({
 			"pos": origin,

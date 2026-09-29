@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-29
+
+- เพิ่ม Windows export preset, จำกัด 60 FPS/จำนวน Particle, ลด resolution ตอน import และลด allocation ใน collision loop เพื่อให้ลื่นขึ้นบนเครื่องสเปกต่ำ
+- แก้เพลงบน itch.io โดยใช้ Stream playback สำหรับเพลงยาวและเริ่ม Audio ใหม่หลัง Browser ได้รับการคลิก/แตะครั้งแรก
 - เพิ่ม Plastic Man เป็น 5 ช่วง HP สุ่มลำดับและจังหวะใช้สกิลจากบอส 5 ตัวก่อนหน้า พร้อมลด HP ลง 20%
 - เพิ่ม HP กำแพงหมึกเลนส์ Phase 3 เป็น 60% และเปลี่ยนกำแพงสองฝั่งให้ใช้ boss_lens_tentacle
 - แก้ Khram หลัง Dash พลาดให้เคลื่อนกลับอย่างต่อเนื่องโดยไม่กระโดดตำแหน่ง
