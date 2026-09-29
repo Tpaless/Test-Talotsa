@@ -147,3 +147,7 @@ project.godot การตั้งค่าโปรเจกต์
 ## Export ขึ้น itch.io
 
 โปรเจกต์มี Web preset สำหรับ Browser ทั้งมือถือและ PC แล้ว อ่านขั้นตอนติดตั้ง Godot Web Export Template, สร้างไฟล์ และตั้งค่า itch.io ได้ที่ [คู่มือ Web Export](docs/WEB_EXPORT.md)
+
+## macOS build
+
+The `macOS` export preset creates `Builds/macOS/Test-Talotsa-v1.0.1-macOS.zip` with a Universal macOS app. See [macOS export instructions](docs/MACOS_EXPORT.md) for building and opening it.
