@@ -179,7 +179,7 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").coin_texture != null)
 	assert(game.get_node("HUD/Renderer").chest_texture != null)
 	assert(game.get_node("HUD/Renderer").settings_texture != null)
-	assert(game.get_node("HUD/Renderer").version_label == "Ver 0.9.9")
+	assert(game.get_node("HUD/Renderer").version_label == "Ver 1.0.0")
 	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer") and game.has_node("ExplosionPlayer"))
 	assert(game.EXPLOSION_EFFECT.resource_path == "res://Sound/Explosion.wav")
 	assert(game.explosion_player.stream == game.EXPLOSION_EFFECT and game.explosion_player.max_polyphony == 32)
@@ -274,6 +274,7 @@ func _run() -> void:
 	assert(game.enemies.size() == 1)
 	assert(background.active_layers.size() == 3)
 	assert(background.active_layers[0].texture.resource_path == "res://assets/backgrounds/layer_1_space.png")
+	assert(background.active_layers[1].texture.resource_path == "res://assets/backgrounds/layer_2_nebula.png")
 	assert(game.get_node("HUD/Renderer").MENU_BACKGROUND_TEXTURE.resource_path == "res://assets/backgrounds/Menu.png")
 	assert(game.VIPER_ENDLESS_UNLOCK_SCORE == 70000)
 	var health_before_escape: int = game.player_health

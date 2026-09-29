@@ -18,7 +18,7 @@ const LAYER_CONFIGS: Array[Dictionary] = [
 	},
 	{
 		"layer": 2,
-		"texture": "res://assets/backgrounds/layer_2_nebula.svg",
+		"texture": "res://assets/backgrounds/layer_2_nebula.png",
 		"speed": 14.0,
 		"opacity": 0.72,
 		"enabled": true

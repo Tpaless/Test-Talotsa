@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
-- Use `Menu.png` for the menu background and the new PNG for the first parallax layer.
+## [1.0.0] - 2026-09-30
+
+- Update the first parallax background and use the new PNG for the second layer.
+- Use `Menu.png` for the menu background.
 - Allow Escape or P to pause and resume during play.
 - Raise Straw Hat Johny's Endless unlock score to 70,000.
 

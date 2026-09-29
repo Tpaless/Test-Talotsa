@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b5mwsniyhhycf"
-path="res://.godot/imported/layer_2_nebula.svg-1833ca963c928e62c702dd0b4b4b7806.ctex"
+uid="uid://dsjx6bamcnhpo"
+path="res://.godot/imported/layer_2_nebula.png-7331d16e8b1880ee72fd5cbcd2d8fc0f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/backgrounds/layer_2_nebula.svg"
-dest_files=["res://.godot/imported/layer_2_nebula.svg-1833ca963c928e62c702dd0b4b4b7806.ctex"]
+source_file="res://assets/backgrounds/layer_2_nebula.png"
+dest_files=["res://.godot/imported/layer_2_nebula.png-7331d16e8b1880ee72fd5cbcd2d8fc0f.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

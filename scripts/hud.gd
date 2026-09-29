@@ -30,7 +30,7 @@ var version_label := ""
 
 func _ready() -> void:
 	game = get_node(game_path)
-	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "0.9.9"))
+	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "1.0.0"))
 	title_font = ThemeDB.fallback_font
 	body_font = ThemeDB.fallback_font
 	story_font = ThemeDB.fallback_font
