@@ -30,7 +30,7 @@ var version_label := ""
 
 func _ready() -> void:
 	game = get_node(game_path)
-	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "1.0.1"))
+	version_label = "Ver %s" % str(ProjectSettings.get_setting("application/config/version", "2.0.0"))
 	title_font = ThemeDB.fallback_font
 	body_font = ThemeDB.fallback_font
 	story_font = ThemeDB.fallback_font
@@ -79,6 +79,7 @@ func _draw() -> void:
 			"scoreboard": draw_scoreboard()
 			"collection": draw_collection_select()
 			"settings": draw_settings()
+			"controls": draw_controls_editor()
 			_: draw_home_menu()
 		return
 	draw_hud()
@@ -283,11 +284,36 @@ func draw_settings() -> void:
 		draw_circle(knob, 16.0, Color("fff09a"))
 		draw_arc(knob, 16.0, 0.0, TAU, 30, Color("ffffff"), 3.0)
 		draw_string(title_font, Vector2(slider.end.x - 76.0, slider.position.y - 30.0), "%d%%" % roundi(value * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, 76.0, 18, Color("fff09a"))
+	draw_rounded_panel(game.EDIT_CONTROLS_BUTTON, Color("15516c"), Color("7fffff"), 18, 3)
+	draw_menu_gradient_text(title_font, game.EDIT_CONTROLS_BUTTON.position + Vector2(0.0, 38.0), "EDIT CONTROLS", HORIZONTAL_ALIGNMENT_CENTER, game.EDIT_CONTROLS_BUTTON.size.x, 20)
 	draw_rounded_panel(game.CLEAR_USER_DATA_BUTTON, Color("6b2031"), Color("ff9aa8"), 18, 3)
 	draw_menu_gradient_text(title_font, game.CLEAR_USER_DATA_BUTTON.position + Vector2(0.0, 38.0), "CLEAR USER DATA", HORIZONTAL_ALIGNMENT_CENTER, game.CLEAR_USER_DATA_BUTTON.size.x, 20)
-	draw_readable_text(story_font, Vector2(54.0, 824.0), "ลบ Coin / ตัวละคร / Stage / Quest / Score และคืนค่าเสียงเริ่มต้น", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 13, Color("ffd7dc"))
+	draw_readable_text(story_font, Vector2(54.0, 871.0), "ลบ Coin / ตัวละคร / Stage / Quest / Score และคืนค่าเสียงเริ่มต้น", HORIZONTAL_ALIGNMENT_CENTER, 432.0, 13, Color("ffd7dc"))
 	if game.clear_data_confirmation_visible:
 		draw_clear_data_confirmation()
+
+
+func draw_controls_editor() -> void:
+	draw_underwater_home_background()
+	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.0, 0.02, 0.08, 0.55))
+	draw_rounded_panel(Rect2(20.0, 24.0, 72.0, 64.0), Color("15516c"), Color("7fffff"), 14, 3)
+	draw_string(title_font, Vector2(20.0, 65.0), "<", HORIZONTAL_ALIGNMENT_CENTER, 72.0, 30, Color.WHITE)
+	draw_menu_gradient_text(title_font, Vector2(106.0, 65.0), "CONTROLS", HORIZONTAL_ALIGNMENT_LEFT, 340.0, 30)
+	draw_string(body_font, Vector2(55.0, 124.0), "DRAG BUTTONS TO MOVE THEM", HORIZONTAL_ALIGNMENT_CENTER, 430.0, 17, Color("d8ffff"))
+	draw_string(body_font, Vector2(55.0, 151.0), "Positions are saved when you release", HORIZONTAL_ALIGNMENT_CENTER, 430.0, 13, Color("a8f8ff"))
+	var slow_center: Vector2 = game.SLOW_BUTTON.get_center()
+	draw_circle(slow_center, game.SLOW_BUTTON.size.x * 0.5, Color("1599ad"))
+	draw_arc(slow_center, game.SLOW_BUTTON.size.x * 0.5 - 2.0, 0.0, TAU, 40, Color("a8f8ff"), 2.0)
+	draw_string(body_font, Vector2(slow_center.x - 38.0, slow_center.y + 6.0), "SLOW", HORIZONTAL_ALIGNMENT_CENTER, 76.0, 13, Color.WHITE)
+	var skill_center: Vector2 = game.SPECIAL_BUTTON.get_center()
+	draw_circle(skill_center, game.SPECIAL_BUTTON.size.x * 0.5, Color("a657c9"))
+	draw_arc(skill_center, game.SPECIAL_BUTTON.size.x * 0.5 - 2.0, 0.0, TAU, 48, Color("ffd2fa"), 3.0)
+	draw_string(body_font, Vector2(skill_center.x - 43.0, skill_center.y + 6.0), "SKILL", HORIZONTAL_ALIGNMENT_CENTER, 86.0, 14, Color.WHITE)
+	draw_rect(game.PAUSE_BUTTON, Color("07304f"))
+	draw_rect(game.PAUSE_BUTTON, Color("76dfff"), false, 2.0)
+	draw_string(body_font, game.PAUSE_BUTTON.position + Vector2(0.0, 31.0), "II", HORIZONTAL_ALIGNMENT_CENTER, game.PAUSE_BUTTON.size.x, 18, Color.WHITE)
+	draw_rounded_panel(game.RESET_CONTROLS_BUTTON, Color("15516c"), Color("7fffff"), 16, 3)
+	draw_menu_gradient_text(title_font, game.RESET_CONTROLS_BUTTON.position + Vector2(0.0, 40.0), "RESET POSITIONS", HORIZONTAL_ALIGNMENT_CENTER, game.RESET_CONTROLS_BUTTON.size.x, 18)
 
 
 func draw_clear_data_confirmation() -> void:
@@ -363,14 +389,15 @@ func draw_stage_select() -> void:
 		draw_rect(card, border, false, 3.0 if selected else 1.0)
 		draw_circle(card.position + Vector2(42.0, 50.0), 24.0, Color(0.12, 0.52, 0.68, 0.30) if unlocked else Color(0.12, 0.13, 0.16, 0.7))
 		draw_menu_gradient_text(title_font, card.position + Vector2(18.0, 59.0), "%d" % (i + 1) if unlocked else "X", HORIZONTAL_ALIGNMENT_CENTER, 48.0, 22, unlocked)
-		var stage_heading := "STAGE %d  •  %s" % [i + 1, game.get_story_boss_name(i + 1)] if unlocked else "STAGE %d" % (i + 1)
+		var stage_label := "SPECIAL STAGE" if i + 1 == game.SPECIAL_BOSS_LEVEL else "STAGE %d" % (i + 1)
+		var stage_heading := stage_label if not unlocked or i + 1 == game.SPECIAL_BOSS_LEVEL else "%s  •  %s" % [stage_label, game.get_story_boss_name(i + 1)]
 		draw_string(story_font, card.position + Vector2(82.0, 38.0), stage_heading, HORIZONTAL_ALIGNMENT_LEFT, 260.0, 19, Color.WHITE if unlocked else Color("647080"))
 		var detail := ("%s  •  BOSS TRIAL" if i + 1 == game.SPECIAL_BOSS_LEVEL else "%s  •  3 PHASES") % game.get_story_stage_area(i + 1) if unlocked else "LOCKED  •  CLEAR STAGE %d" % i
 		draw_string(story_font, card.position + Vector2(82.0, 70.0), detail, HORIZONTAL_ALIGNMENT_LEFT, 350.0, 13, Color("8eeaff") if unlocked else Color("536070"))
 		if selected:
 			draw_menu_gradient_text(title_font, card.position + Vector2(340.0, 61.0), "READY", HORIZONTAL_ALIGNMENT_CENTER, 96.0, 15)
 	draw_rounded_panel(game.STAGE_START_BUTTON, Color("f2a918"), Color("fff09a"), 18, 4)
-	draw_menu_gradient_text(title_font, game.STAGE_START_BUTTON.position + Vector2(0.0, 45.0), "START STAGE %d" % game.selected_stage, HORIZONTAL_ALIGNMENT_CENTER, game.STAGE_START_BUTTON.size.x, 19)
+	draw_menu_gradient_text(title_font, game.STAGE_START_BUTTON.position + Vector2(0.0, 45.0), "START SPECIAL STAGE" if game.selected_stage == game.SPECIAL_BOSS_LEVEL else "START STAGE %d" % game.selected_stage, HORIZONTAL_ALIGNMENT_CENTER, game.STAGE_START_BUTTON.size.x, 19)
 	draw_set_transform(Vector2.ZERO)
 
 func draw_collection_select() -> void:
@@ -480,11 +507,11 @@ func draw_hud() -> void:
 
 	draw_rect(Rect2(144.0, 14.0, 126.0, 66.0), panel_fill)
 	draw_rect(Rect2(144.0, 14.0, 126.0, 66.0), panel_border, false, 1.0)
-	var mode_label := "ENDLESS" if game.endless_mode else ("SPECIAL" if game.special_stage_mode else "STAGE %d" % game.level)
+	var mode_label := "ENDLESS" if game.endless_mode else ("SPECIAL STAGE" if game.special_stage_mode else "STAGE %d" % game.level)
 	if game.difficulty_multiplier > 1 and not game.special_stage_mode:
 		mode_label += " NM×%d" % game.difficulty_multiplier
 	draw_string(body_font, Vector2(144.0, 36.0), mode_label, HORIZONTAL_ALIGNMENT_CENTER, 126.0, 11, Color("ff9de1") if game.difficulty_multiplier > 1 else Color("76dfff"))
-	draw_string(title_font, Vector2(144.0, 65.0), "BOSS #%d" % (game.endless_bosses_defeated + 1) if game.endless_mode else ("BOSS %d" % game.SPECIAL_BOSS_LEVEL if game.special_stage_mode else "PHASE %d / %d" % [game.stage_level, game.LEVELS_PER_STAGE]), HORIZONTAL_ALIGNMENT_CENTER, 126.0, 15, Color.WHITE)
+	draw_string(title_font, Vector2(144.0, 65.0), "BOSS #%d" % (game.endless_bosses_defeated + 1) if game.endless_mode else ("BOSS TRIAL" if game.special_stage_mode else "PHASE %d / %d" % [game.stage_level, game.LEVELS_PER_STAGE]), HORIZONTAL_ALIGNMENT_CENTER, 126.0, 15, Color.WHITE)
 
 	draw_rect(Rect2(280.0, 14.0, 154.0, 66.0), panel_fill)
 	draw_rect(Rect2(280.0, 14.0, 154.0, 66.0), panel_border, false, 1.0)
@@ -523,7 +550,7 @@ func draw_hud() -> void:
 	var slow_center: Vector2 = game.SLOW_BUTTON.get_center()
 	draw_circle(slow_center, game.SLOW_BUTTON.size.x * 0.5, Color("1599ad") if slow_active else Color(0.035, 0.085, 0.16, 0.90))
 	draw_arc(slow_center, game.SLOW_BUTTON.size.x * 0.5 - 2.0, 0.0, TAU, 40, Color("a8f8ff"), 2.0)
-	draw_string(body_font, Vector2(slow_center.x - 38.0, slow_center.y + 6.0), "SLOW", HORIZONTAL_ALIGNMENT_CENTER, 76.0, 13, Color.WHITE)
+	draw_string(body_font, Vector2(slow_center.x - 38.0, slow_center.y + 6.0), "SLOW ON" if game.slow_toggled else "SLOW", HORIZONTAL_ALIGNMENT_CENTER, 76.0, 12, Color.WHITE)
 	if slow_active:
 		draw_arc(game.player_pos, game.PLAYER_RADIUS, 0.0, TAU, 32, Color("7df9ff"), 1.5)
 		draw_circle(game.player_pos, 3.0, Color("d8ffff"))
@@ -547,7 +574,7 @@ func draw_first_stage_tutorial() -> void:
 	draw_string(body_font, Vector2(42.0, 269.0), "Defeat enemies to fill the bar", HORIZONTAL_ALIGNMENT_LEFT, 240.0, 14, Color("8eeaff"))
 	draw_string(body_font, Vector2(42.0, 292.0), "A boss appears when it reaches the top", HORIZONTAL_ALIGNMENT_LEFT, 244.0, 13, Color("d8ffff"))
 	draw_line(Vector2(26.0, 276.0), Vector2(14.0, 276.0), Color("65efff"), 3.0)
-	draw_string(body_font, Vector2(105.0, 842.0), "DRAG TO MOVE  ·  HOLD SLOW TO DODGE  ·  TAP SKILL", HORIZONTAL_ALIGNMENT_CENTER, 330.0, 12, Color("d8ffff"))
+	draw_string(body_font, Vector2(105.0, 842.0), "DRAG TO MOVE  ·  TAP SLOW TO TOGGLE  ·  TAP SKILL", HORIZONTAL_ALIGNMENT_CENTER, 330.0, 12, Color("d8ffff"))
 
 func draw_overlay(heading: String, subheading: String) -> void:
 	draw_rect(Rect2(Vector2.ZERO, SCREEN_SIZE), Color(0.01, 0.015, 0.06, 0.78))
@@ -580,7 +607,7 @@ func draw_summary() -> void:
 	draw_rect(Rect2(40.0, 278.0, 460.0, 400.0), Color(0.03, 0.06, 0.16, 0.96))
 	draw_rect(Rect2(40.0, 278.0, 460.0, 400.0), Color(0.29, 0.88, 1.0, 0.68), false, 2.0)
 	draw_string(title_font, Vector2(40.0, 353.0), heading, HORIZONTAL_ALIGNMENT_CENTER, 460.0, 30, Color("eafcff"))
-	var mode_detail := "BOSSES DEFEATED  %d" % game.endless_bosses_defeated if game.endless_mode else "STAGE %d  PHASE %d / %d" % [game.level, game.stage_level, game.LEVELS_PER_STAGE]
+	var mode_detail := "BOSSES DEFEATED  %d" % game.endless_bosses_defeated if game.endless_mode else ("SPECIAL STAGE" if game.special_stage_mode else "STAGE %d  PHASE %d / %d" % [game.level, game.stage_level, game.LEVELS_PER_STAGE])
 	draw_string(body_font, Vector2(40.0, 410.0), mode_detail, HORIZONTAL_ALIGNMENT_CENTER, 460.0, 18, Color("8eeaff"))
 	draw_string(title_font, Vector2(40.0, 479.0), "SCORE  %06d" % game.score, HORIZONTAL_ALIGNMENT_CENTER, 460.0, 27, Color.WHITE)
 	draw_string(body_font, Vector2(40.0, 527.0), "BEST  %08d" % (game.get_endless_best_score() if game.endless_mode else game.best_score), HORIZONTAL_ALIGNMENT_CENTER, 460.0, 20, Color("ffe66d"))

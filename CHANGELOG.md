@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-12
+
+- Fix research source links on iOS browsers by opening from native browser gestures.
+- Rename Stage 7 to Special Stage in stage selection, gameplay and results.
+- Show queued Achievement banners for cleared stages and newly completed Quests, including Special Stage, Nightmare and credits.
+- Add saved positions for the mobile Slow, Skill and Pause controls and make Slow a tap toggle.
+- Improve touch dragging and mobile particle limits, and use portrait Web exports.
+- Synchronize repository and platform version metadata and refresh Web, Windows and macOS exports.
+
+
 ## [1.0.1] - 2026-09-30
 
 - Reset the Endless boss gauge after each boss and wait five seconds before the next boss can appear.

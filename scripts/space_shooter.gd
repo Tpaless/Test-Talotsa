@@ -69,14 +69,16 @@ const SENA_RAINBOW_WARNING := 0.80
 const SENA_RAINBOW_ACTIVE := 0.55
 const SENA_MISSILE_INTERVAL := 1.80
 const SENA_MISSILE_SPEED := 145.0
-# โหมดเคลื่อนที่ช้า: กด Shift หรือกดปุ่ม SLOW ค้างบนจอสัมผัส
+# โหมดเคลื่อนที่ช้า: กด Shift ค้าง หรือแตะปุ่ม SLOW เพื่อเปิด/ปิด
 const SLOW_SPEED_MULTIPLIER := 0.42
-const SLOW_BUTTON := Rect2(18.0, 866.0, 76.0, 76.0)
+const DEFAULT_SLOW_BUTTON := Rect2(18.0, 866.0, 76.0, 76.0)
 # เวลาที่หน้าสรุปคะแนนแสดงก่อนกลับเมนู (วินาที)
 const SUMMARY_DURATION := 6.0
 # รายการบทสนทนาแต่ละด่านอยู่ในไฟล์นี้; หน้าตาอยู่ที่ ui/dialogue_overlay.tscn
 const DIALOGUE_CONFIG = preload("res://scripts/dialogue_config.gd")
 const RESEARCH_CONFIG = preload("res://scripts/research_config.gd")
+const WEB_RESEARCH_LINK = preload("res://scripts/web_research_link.gd")
+var web_research_link = WEB_RESEARCH_LINK.new()
 const PLAYER_CONFIG = preload("res://scripts/player_config.gd")
 const VISUAL_CONFIG = preload("res://scripts/visual_config.gd")
 const SE_IDLE_TEXTURE: Texture2D = preload("res://assets/sprites/boss_se_idle.png")
@@ -101,7 +103,7 @@ const MUSIC_TRACKS := {
 const START_EFFECT: AudioStream = preload("res://Sound/Start_Button.wav")
 const EXPLOSION_EFFECT: AudioStream = preload("res://Sound/Explosion.wav")
 const GAME_OVER_EFFECT: AudioStream = preload("res://Sound/Game_Over.wav")
-const PAUSE_BUTTON := Rect2(448.0, 16.0, 76.0, 48.0)
+const DEFAULT_PAUSE_BUTTON := Rect2(448.0, 16.0, 76.0, 48.0)
 const PAUSE_RESUME_BUTTON := Rect2(120.0, 382.0, 300.0, 68.0)
 const PAUSE_RESTART_BUTTON := Rect2(120.0, 470.0, 300.0, 68.0)
 const PAUSE_MENU_BUTTON := Rect2(120.0, 558.0, 300.0, 68.0)
@@ -134,12 +136,14 @@ const HOME_SHOP_BUTTON := HOME_SCOREBOARD_BUTTON
 const HOME_COLLECTION_BUTTON := Rect2(34.0, 808.0, 300.0, 86.0)
 const LAUNCH_BUTTON := Rect2(360.0, 700.0, 146.0, 198.0)
 const SETTINGS_BUTTON := Rect2(474.0, 76.0, 50.0, 50.0)
+const EDIT_CONTROLS_BUTTON := Rect2(82.0, 714.0, 376.0, 58.0)
+const RESET_CONTROLS_BUTTON := Rect2(120.0, 792.0, 300.0, 62.0)
 const SETTINGS_SLIDERS := [
 	Rect2(82.0, 320.0, 376.0, 42.0),
 	Rect2(82.0, 466.0, 376.0, 42.0),
 	Rect2(82.0, 612.0, 376.0, 42.0)
 ]
-const CLEAR_USER_DATA_BUTTON := Rect2(82.0, 720.0, 376.0, 60.0)
+const CLEAR_USER_DATA_BUTTON := Rect2(82.0, 790.0, 376.0, 58.0)
 const CLEAR_DATA_CANCEL_BUTTON := Rect2(74.0, 570.0, 180.0, 64.0)
 const CLEAR_DATA_CONFIRM_BUTTON := Rect2(286.0, 570.0, 180.0, 64.0)
 const MENU_BACK_BUTTON := Rect2(452.0, 24.0, 64.0, 64.0)
@@ -153,7 +157,7 @@ const STAGE_START_BUTTON := Rect2(150.0, 808.0, 240.0, 72.0)
 const SCOREBOARD_START_BUTTON := Rect2(120.0, 792.0, 300.0, 82.0)
 const QUEST_READ_BUTTON := Rect2(104.0, 760.0, 332.0, 72.0)
 const SHOP_BUY_BUTTON := Rect2(424.0, 648.0, 96.0, 96.0)
-const SPECIAL_BUTTON := Rect2(438.0, 856.0, 86.0, 86.0)
+const DEFAULT_SPECIAL_BUTTON := Rect2(438.0, 856.0, 86.0, 86.0)
 const PLAYER_SCENES: Array[PackedScene] = [
 	preload("res://characters/player/player.tscn"),
 	preload("res://characters/player/swift.tscn"),
@@ -281,8 +285,13 @@ var pointer_index := -1
 var pointer_offset := Vector2.ZERO
 var pointer_target := Vector2.ZERO
 var slow_key_held := false
-var slow_mouse_held := false
-var slow_touch_index := -1
+var slow_toggled := false
+var SLOW_BUTTON := DEFAULT_SLOW_BUTTON
+var SPECIAL_BUTTON := DEFAULT_SPECIAL_BUTTON
+var PAUSE_BUTTON := DEFAULT_PAUSE_BUTTON
+var control_drag_name := ""
+var control_drag_index := -1
+var control_drag_offset := Vector2.ZERO
 var last_mouse_click_ms := -1000
 var last_mouse_click_position := Vector2.ZERO
 var last_touch_tap_ms := -1000
@@ -390,6 +399,9 @@ func load_item_collection() -> void:
 		master_volume = clampf(float(stored.get("master_volume", master_volume)), 0.0, 1.0)
 		music_volume = clampf(float(stored.get("music_volume", music_volume)), 0.0, 1.0)
 		effect_volume = clampf(float(stored.get("effect_volume", effect_volume)), 0.0, 1.0)
+		SLOW_BUTTON.position = load_control_position(stored, "slow_button", DEFAULT_SLOW_BUTTON)
+		SPECIAL_BUTTON.position = load_control_position(stored, "special_button", DEFAULT_SPECIAL_BUTTON)
+		PAUSE_BUTTON.position = load_control_position(stored, "pause_button", DEFAULT_PAUSE_BUTTON)
 		# Johny starts alone; Straw Hat requires Stage 4 and 30,000 Endless points.
 		unlocked_ships.assign(DEFAULT_UNLOCKED_SHIPS)
 		var saved_unlocked_ships: Variant = stored.get("unlocked_ships", stored.get("unlocked_turtle_skins", []))
@@ -404,6 +416,17 @@ func load_item_collection() -> void:
 	for cleared_stage in item_collection:
 		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(cleared_stage + 1, STAGE_SELECT_COUNT))
 	selected_stage = clampi(selected_stage, 1, highest_unlocked_stage)
+
+
+func load_control_position(stored: Dictionary, key: String, default_rect: Rect2) -> Vector2:
+	var value: Variant = stored.get(key, [])
+	if value is Array and value.size() == 2 and (value[0] is int or value[0] is float) and (value[1] is int or value[1] is float):
+		return clamp_control_position(Vector2(float(value[0]), float(value[1])), default_rect.size)
+	return default_rect.position
+
+
+func clamp_control_position(position: Vector2, size: Vector2) -> Vector2:
+	return Vector2(clampf(position.x, 8.0, GAME_SIZE.x - size.x - 8.0), clampf(position.y, 8.0, GAME_SIZE.y - size.y - 8.0))
 
 
 func save_item_collection() -> void:
@@ -422,11 +445,15 @@ func save_item_collection() -> void:
 			"nightmare_endless_scores": nightmare_endless_scores,
 			"master_volume": master_volume,
 			"music_volume": music_volume,
-			"effect_volume": effect_volume
+			"effect_volume": effect_volume,
+			"slow_button": [SLOW_BUTTON.position.x, SLOW_BUTTON.position.y],
+			"special_button": [SPECIAL_BUTTON.position.x, SPECIAL_BUTTON.position.y],
+			"pause_button": [PAUSE_BUTTON.position.x, PAUSE_BUTTON.position.y]
 		}))
 
 
 func clear_user_data() -> bool:
+	get_node("AchievementLayer/Notifications").clear_notifications()
 	var save_removed := true
 	if FileAccess.file_exists(collection_save_path):
 		var absolute_save_path := collection_save_path
@@ -456,10 +483,22 @@ func clear_user_data() -> bool:
 	music_volume = 0.78
 	effect_volume = 0.86
 	settings_drag_index = -1
+	reset_control_positions(false)
 	clear_data_confirmation_visible = false
 	apply_audio_levels()
 	queue_redraw()
 	return save_removed
+
+
+func reset_control_positions(persist: bool = true) -> void:
+	SLOW_BUTTON = DEFAULT_SLOW_BUTTON
+	SPECIAL_BUTTON = DEFAULT_SPECIAL_BUTTON
+	PAUSE_BUTTON = DEFAULT_PAUSE_BUTTON
+	control_drag_name = ""
+	control_drag_index = -1
+	if persist:
+		save_item_collection()
+	queue_redraw()
 
 
 func audio_linear_to_db(value: float) -> float:
@@ -766,8 +805,7 @@ func show_character_select() -> void:
 	dialogue_overlay.hide()
 	pointer_active = false
 	slow_key_held = false
-	slow_mouse_held = false
-	slow_touch_index = -1
+	slow_toggled = false
 	last_mouse_click_ms = -1000
 	last_touch_tap_ms = -1000
 	menu_swipe_index = -1
@@ -890,8 +928,7 @@ func reset_game() -> void:
 	summary_timer = 0.0
 	pointer_active = false
 	slow_key_held = false
-	slow_mouse_held = false
-	slow_touch_index = -1
+	slow_toggled = false
 	last_mouse_click_ms = -1000
 	last_touch_tap_ms = -1000
 	menu_swipe_index = -1
@@ -1003,6 +1040,9 @@ func _unhandled_input(event: InputEvent) -> void:
 						menu_page = "home"
 				elif (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE) and quest_open_stage > 0:
 					open_quest_source()
+			elif menu_page == "controls":
+				if event.keycode == KEY_ESCAPE or event.keycode == KEY_ENTER:
+					menu_page = "settings"
 			elif menu_page == "settings":
 				if clear_data_confirmation_visible:
 					if event.keycode == KEY_ESCAPE:
@@ -1117,7 +1157,9 @@ func handle_menu_press(position: Vector2) -> void:
 						quest_open_stage = stage
 						break
 		elif menu_page == "settings":
-			if CLEAR_USER_DATA_BUTTON.has_point(adjusted_position):
+			if EDIT_CONTROLS_BUTTON.has_point(adjusted_position):
+				menu_page = "controls"
+			elif CLEAR_USER_DATA_BUTTON.has_point(adjusted_position):
 				clear_data_confirmation_visible = true
 			else:
 				for setting_index in range(SETTINGS_SLIDERS.size()):
@@ -1125,6 +1167,73 @@ func handle_menu_press(position: Vector2) -> void:
 						set_audio_setting_from_position(setting_index, adjusted_position.x)
 						break
 	queue_redraw()
+
+
+func handle_controls_edit(event: InputEvent) -> void:
+	var position := Vector2.ZERO
+	var pressed := false
+	var released := false
+	var dragging := false
+	var input_index := -1
+	if event is InputEventScreenTouch:
+		position = event.position
+		input_index = event.index
+		pressed = event.pressed
+		released = not event.pressed
+	elif event is InputEventScreenDrag:
+		position = event.position
+		input_index = event.index
+		dragging = true
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		position = event.position
+		pressed = event.pressed
+		released = not event.pressed
+	elif event is InputEventMouseMotion:
+		position = event.position
+		dragging = true
+	else:
+		return
+	if pressed:
+		if Rect2(20.0, 24.0, 72.0, 64.0).has_point(position):
+			menu_page = "settings"
+			queue_redraw()
+			return
+		if RESET_CONTROLS_BUTTON.has_point(position):
+			reset_control_positions()
+			return
+		for name in ["pause", "skill", "slow"]:
+			var rect: Rect2 = get_control_rect(name)
+			if rect.has_point(position):
+				control_drag_name = name
+				control_drag_index = input_index
+				control_drag_offset = position - rect.position
+				return
+	if control_drag_name.is_empty() or control_drag_index != input_index:
+		return
+	if dragging or released:
+		var rect := get_control_rect(control_drag_name)
+		rect.position = clamp_control_position(position - control_drag_offset, rect.size)
+		set_control_rect(control_drag_name, rect)
+		queue_redraw()
+	if released:
+		control_drag_name = ""
+		control_drag_index = -1
+		save_item_collection()
+
+
+func get_control_rect(name: String) -> Rect2:
+	match name:
+		"slow": return SLOW_BUTTON
+		"skill": return SPECIAL_BUTTON
+		"pause": return PAUSE_BUTTON
+	return Rect2()
+
+
+func set_control_rect(name: String, rect: Rect2) -> void:
+	match name:
+		"slow": SLOW_BUTTON = rect
+		"skill": SPECIAL_BUTTON = rect
+		"pause": PAUSE_BUTTON = rect
 
 
 func handle_settings_drag(event: InputEvent) -> void:
@@ -1229,6 +1338,19 @@ func get_open_research_entry() -> Dictionary:
 	return entry
 
 
+func get_web_quest_source_url() -> String:
+	if not selecting_character or menu_page != "collection" or quest_open_stage <= 0 or not item_collection.has(quest_open_stage) or dialogue_active or purchase_overlay_visible or clear_data_confirmation_visible:
+		return ""
+	var entry := get_open_research_entry()
+	if entry.has("fragment_group") and not bool(entry.get("fragment_complete", false)):
+		return ""
+	return str(entry.get("source_url", ""))
+
+
+func _exit_tree() -> void:
+	web_research_link.dispose()
+
+
 func open_quest_source() -> Error:
 	var entry := get_open_research_entry()
 	if entry.has("fragment_group") and not bool(entry.get("fragment_complete", false)):
@@ -1236,6 +1358,10 @@ func open_quest_source() -> Error:
 	var source_url := str(entry.get("source_url", ""))
 	if source_url.is_empty():
 		return ERR_FILE_NOT_FOUND
+	# Web navigation runs in native browser click/touchend/keydown listeners.
+	# Godot's touch-down event does not carry Safari's user activation.
+	if OS.has_feature("web"):
+		return OK
 	return OS.shell_open(source_url)
 
 
@@ -1294,6 +1420,13 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if selecting_character:
+		if menu_page == "controls":
+			if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+				menu_page = "settings"
+			else:
+				handle_controls_edit(event)
+			get_viewport().set_input_as_handled()
+			return
 		if menu_page == "settings":
 			handle_settings_drag(event)
 			return
@@ -1319,8 +1452,9 @@ func _input(event: InputEvent) -> void:
 				pointer_active = false
 				paused = not paused
 				return
-			if SLOW_BUTTON.has_point(event.position) and not paused:
-				slow_touch_index = event.index
+			if SLOW_BUTTON.has_point(event.position):
+				slow_toggled = not slow_toggled
+				last_touch_tap_ms = -1000
 				return
 			if SPECIAL_BUTTON.has_point(event.position) and not paused:
 				activate_special()
@@ -1338,8 +1472,6 @@ func _input(event: InputEvent) -> void:
 				pointer_index = event.index
 				pointer_offset = player_pos - event.position
 				pointer_target = player_pos
-		elif slow_touch_index == event.index:
-			slow_touch_index = -1
 		elif pointer_active and pointer_index == event.index:
 			pointer_active = false
 	elif event is InputEventScreenDrag and pointer_active and pointer_index == event.index and not paused:
@@ -1352,8 +1484,9 @@ func _input(event: InputEvent) -> void:
 				pointer_active = false
 				paused = not paused
 				return
-			if SLOW_BUTTON.has_point(event.position) and not paused:
-				slow_mouse_held = true
+			if SLOW_BUTTON.has_point(event.position):
+				slow_toggled = not slow_toggled
+				last_mouse_click_ms = -1000
 				return
 			if SPECIAL_BUTTON.has_point(event.position) and not paused:
 				activate_special()
@@ -1370,8 +1503,6 @@ func _input(event: InputEvent) -> void:
 				pointer_index = -1
 				pointer_offset = player_pos - event.position
 				pointer_target = player_pos
-		elif slow_mouse_held:
-			slow_mouse_held = false
 		elif pointer_active and pointer_index == -1:
 			pointer_index = -2
 			pointer_offset = Vector2.ZERO
@@ -1426,6 +1557,8 @@ func exit_run_to_menu() -> void:
 
 
 func _process(delta: float) -> void:
+	if OS.has_feature("web"):
+		web_research_link.sync(get_web_quest_source_url(), get_viewport().get_final_transform() * QUEST_READ_BUTTON, Vector2(DisplayServer.window_get_size()))
 	menu_animation_time += delta
 	if selecting_character:
 		carousel_slide_offset = move_toward(carousel_slide_offset, 0.0, delta * 980.0)
@@ -1483,7 +1616,11 @@ func update_game(delta: float) -> void:
 			pointer_active = false
 		player_pos += direction.normalized() * move_speed * delta
 	elif pointer_active:
-		player_pos = player_pos.move_toward(pointer_target, move_speed * delta)
+		var follow_speed := move_speed
+		if pointer_index >= 0:
+			# Catch up with a long finger drag without changing short, precise movements.
+			follow_speed *= clampf(player_pos.distance_to(pointer_target) / 120.0, 1.0, 2.0)
+		player_pos = player_pos.move_toward(pointer_target, follow_speed * delta)
 	player_pos.x = clampf(player_pos.x, 30.0, GAME_SIZE.x - 30.0)
 	player_pos.y = clampf(player_pos.y, 225.0, GAME_SIZE.y - 34.0)
 	update_player_motion_effects(previous_player_pos, delta)
@@ -1540,7 +1677,7 @@ func update_player_afterimages(delta: float) -> void:
 
 
 func is_slow_mode_active() -> bool:
-	return slow_key_held or slow_mouse_held or slow_touch_index >= 0
+	return slow_key_held or slow_toggled
 
 
 func get_player_move_speed() -> float:
@@ -2974,8 +3111,7 @@ func start_stage_intro() -> void:
 	dialogue_lines = intro_lines
 	dialogue_completion = "intro"
 	pointer_active = false
-	slow_mouse_held = false
-	slow_touch_index = -1
+	slow_toggled = false
 	enemy_bullets.clear()
 	show_dialogue_line()
 
@@ -2987,8 +3123,7 @@ func start_boss_dialogue() -> void:
 	dialogue_lines = personalize_dialogue_lines(DIALOGUE_CONFIG.get_lines(level, stage_level))
 	dialogue_completion = "phase"
 	pointer_active = false
-	slow_mouse_held = false
-	slow_touch_index = -1
+	slow_toggled = false
 	if dialogue_lines.is_empty():
 		# ถ้าลบบทสนทนาทั้งหมด ให้จบระดับหลังระบบชนกระสุนรอบนี้เสร็จ
 		complete_stage.call_deferred()
@@ -3056,6 +3191,7 @@ func complete_stage() -> void:
 	viper_beam_time_remaining = 0.0
 	viper_beam_hits.clear()
 	if special_stage_mode:
+		notify_achievement("SPECIAL STAGE CLEARED", "ปลดล็อก RAZOR" if not razor_special_cleared else "เอาชนะ Red Guy สำเร็จ")
 		razor_special_cleared = true
 		if 3 not in unlocked_ships:
 			unlocked_ships.append(3)
@@ -3064,6 +3200,7 @@ func complete_stage() -> void:
 		finish_game(true)
 		return
 	if stage_level >= LEVELS_PER_STAGE:
+		notify_achievement("STAGE %d CLEARED" % level, "เอาชนะ %s สำเร็จ" % get_story_boss_name(level))
 		collect_boss_item(level)
 		highest_unlocked_stage = maxi(highest_unlocked_stage, mini(level + 1, STAGE_SELECT_COUNT))
 		save_item_collection()
@@ -3088,9 +3225,14 @@ func complete_stage() -> void:
 	player_health = mini(max_player_health, player_health + ceili(max_player_health * 0.25))
 
 
+func notify_achievement(title: String, detail: String) -> void:
+	get_node("AchievementLayer/Notifications").enqueue(title, detail)
+
+
 func collect_boss_item(stage: int) -> void:
 	if BOSS_REWARDS.has(stage) and not item_collection.has(stage):
 		item_collection.append(stage)
+		notify_achievement("QUEST COMPLETED", str(BOSS_REWARDS[stage].name))
 		save_item_collection()
 		if stage == 4:
 			unlock_straw_hat_if_eligible()
@@ -3147,15 +3289,14 @@ func finish_game(won: bool) -> void:
 	if endless_mode:
 		record_endless_score()
 	pointer_active = false
-	slow_mouse_held = false
-	slow_touch_index = -1
+	slow_toggled = false
 	player_sprite.visible = false
 	if not won:
 		play_effect(GAME_OVER_EFFECT)
 
 
 func spawn_sparks(origin: Vector2, color: Color, count: int, speed: float) -> void:
-	var particle_limit := MAX_MOBILE_PARTICLES if OS.has_feature("mobile") else (MAX_WEB_PARTICLES if OS.has_feature("web") else MAX_DESKTOP_PARTICLES)
+	var particle_limit := MAX_MOBILE_PARTICLES if DisplayServer.is_touchscreen_available() else (MAX_WEB_PARTICLES if OS.has_feature("web") else MAX_DESKTOP_PARTICLES)
 	var spawn_count := mini(count, particle_limit)
 	var overflow := particles.size() + spawn_count - particle_limit
 	if overflow >= particles.size():

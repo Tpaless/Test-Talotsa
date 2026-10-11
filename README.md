@@ -1,6 +1,6 @@
 # Test Talotsa
 
-เวอร์ชันปัจจุบัน: **v1.0.1** (Ver 1.0.1)
+เวอร์ชันปัจจุบัน: **v2.0.0** (Ver 2.0.0)
 
 เกมยานยิงใต้น้ำ 2D แนวตั้งที่สร้างด้วย Godot ผู้เล่นคือ Johny เต่าทะเลที่ใช้คลื่นชำระล้างช่วยเพื่อนจาก Micro Plastic Energy มีหน้า Home สำหรับเลือกยาน 5 แบบ ด่านเนื้อเรื่อง 1–6 โหมด Endless ระบบคะแนน พลังชีวิต และพื้นหลัง Parallax
 
@@ -150,4 +150,4 @@ project.godot การตั้งค่าโปรเจกต์
 
 ## macOS build
 
-The `macOS` export preset creates `Builds/macOS/Test-Talotsa-v1.0.1-macOS.zip` with a Universal macOS app. See [macOS export instructions](docs/MACOS_EXPORT.md) for building and opening it.
+The `macOS` export preset creates `Builds/macOS/Test-Talotsa-v2.0.0-macOS.zip` with a Universal macOS app. See [macOS export instructions](docs/MACOS_EXPORT.md) for building and opening it.

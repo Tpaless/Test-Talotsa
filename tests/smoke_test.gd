@@ -65,6 +65,31 @@ func _run() -> void:
 	menu_click.position = Vector2(game.SETTINGS_SLIDERS[0].position.x + game.SETTINGS_SLIDERS[0].size.x * 0.5, game.SETTINGS_SLIDERS[0].get_center().y)
 	game._unhandled_input(menu_click)
 	assert(is_equal_approx(game.master_volume, 0.5))
+	menu_click.position = game.EDIT_CONTROLS_BUTTON.get_center()
+	game._unhandled_input(menu_click)
+	assert(game.menu_page == "controls")
+	var control_touch := InputEventScreenTouch.new()
+	control_touch.index = 2
+	control_touch.pressed = true
+	control_touch.position = game.SLOW_BUTTON.get_center()
+	game._input(control_touch)
+	var control_drag := InputEventScreenDrag.new()
+	control_drag.index = 2
+	control_drag.position = control_touch.position + Vector2(80.0, -100.0)
+	game._input(control_drag)
+	control_touch.pressed = false
+	control_touch.position = control_drag.position
+	game._input(control_touch)
+	assert(game.SLOW_BUTTON.position == game.DEFAULT_SLOW_BUTTON.position + Vector2(80.0, -100.0))
+	var controls_save: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(game.collection_save_path))
+	assert(controls_save["slow_button"] == [game.SLOW_BUTTON.position.x, game.SLOW_BUTTON.position.y])
+	control_touch.pressed = true
+	control_touch.position = game.RESET_CONTROLS_BUTTON.get_center()
+	game._input(control_touch)
+	assert(game.SLOW_BUTTON == game.DEFAULT_SLOW_BUTTON)
+	control_touch.position = Vector2(56.0, 56.0)
+	game._input(control_touch)
+	assert(game.menu_page == "settings")
 	menu_click.position = game.CLEAR_USER_DATA_BUTTON.get_center()
 	game._unhandled_input(menu_click)
 	assert(game.clear_data_confirmation_visible)
@@ -180,7 +205,7 @@ func _run() -> void:
 	assert(game.get_node("HUD/Renderer").coin_texture != null)
 	assert(game.get_node("HUD/Renderer").chest_texture != null)
 	assert(game.get_node("HUD/Renderer").settings_texture != null)
-	assert(game.get_node("HUD/Renderer").version_label == "Ver 1.0.1")
+	assert(game.get_node("HUD/Renderer").version_label == "Ver 2.0.0")
 	assert(game.has_node("MusicPlayer") and game.has_node("EffectPlayer") and game.has_node("ExplosionPlayer"))
 	assert(game.EXPLOSION_EFFECT.resource_path == "res://Sound/Explosion.wav")
 	assert(game.explosion_player.stream == game.EXPLOSION_EFFECT and game.explosion_player.max_polyphony == 32)
@@ -200,6 +225,7 @@ func _run() -> void:
 	assert(FileAccess.file_exists("res://export_presets.cfg"))
 	var export_presets_text := FileAccess.get_file_as_string("res://export_presets.cfg")
 	assert("name=\"Windows Desktop\"" in export_presets_text and "name=\"Android APK\"" not in export_presets_text)
+	assert("progressive_web_app/orientation=2" in export_presets_text)
 	assert(ProjectSettings.get_setting("rendering/renderer/rendering_method") == "gl_compatibility")
 	assert(game.player_sprite.texture != null)
 	assert(game.get_ship_display_name(0) == "JOHNY")
@@ -260,6 +286,36 @@ func _run() -> void:
 	game.item_collection.append(5)
 	assert(game.get_open_research_entry().fragment_complete)
 	assert(game.get_open_research_entry().summary == game.get_open_research_entry().full_summary)
+	# Browser links are enabled only while an unlocked source detail is visible.
+	var source_selecting: bool = game.selecting_character
+	var source_menu_page: String = game.menu_page
+	var source_open_stage: int = game.quest_open_stage
+	game.item_collection.append(1)
+	game.selecting_character = true
+	game.menu_page = "collection"
+	game.quest_open_stage = 1
+	assert(game.get_web_quest_source_url() == game.RESEARCH_CONFIG.get_entry(1).source_url)
+	game.item_collection.erase(1)
+	assert(game.get_web_quest_source_url().is_empty())
+	game.item_collection.append(1)
+	game.quest_open_stage = 3
+	game.item_collection.erase(5)
+	assert(game.get_web_quest_source_url().is_empty())
+	assert(game.open_quest_source() == ERR_UNAVAILABLE)
+	game.item_collection.append(5)
+	assert(game.get_web_quest_source_url() == game.RESEARCH_CONFIG.get_entry(3).source_url)
+	game.menu_page = "home"
+	assert(game.get_web_quest_source_url().is_empty())
+	game.menu_page = "collection"
+	game.quest_open_stage = 0
+	assert(game.get_web_quest_source_url().is_empty())
+	game.quest_open_stage = 1
+	game.selecting_character = false
+	assert(game.get_web_quest_source_url().is_empty())
+	game.selecting_character = source_selecting
+	game.menu_page = source_menu_page
+	game.quest_open_stage = source_open_stage
+	game.item_collection.erase(1)
 	assert(not game.is_nightmare_unlocked() and not game.set_difficulty_multiplier(2))
 	game.item_collection.assign([1, 2, 3, 4, 5, 6])
 	assert(game.is_nightmare_unlocked() and game.set_difficulty_multiplier(3))
@@ -388,7 +444,7 @@ func _run() -> void:
 	shift_key.pressed = false
 	game._input(shift_key)
 	assert(not game.is_slow_mode_active())
-	# มือถือกดปุ่ม SLOW ค้างด้วยนิ้วที่สองได้ โดยไม่ปล่อยนิ้วที่ควบคุมยาน
+	# มือถือแตะ SLOW เพื่อสลับโหมด โดยไม่ต้องปล่อยนิ้วที่ควบคุมยาน
 	var slow_touch := InputEventScreenTouch.new()
 	slow_touch.index = 1
 	slow_touch.pressed = true
@@ -397,7 +453,12 @@ func _run() -> void:
 	assert(game.is_slow_mode_active() and game.pointer_active)
 	slow_touch.pressed = false
 	game._input(slow_touch)
+	assert(game.is_slow_mode_active() and game.pointer_active)
+	slow_touch.pressed = true
+	game._input(slow_touch)
 	assert(not game.is_slow_mode_active() and game.pointer_active)
+	slow_touch.pressed = false
+	game._input(slow_touch)
 	var pause_touch := InputEventScreenTouch.new()
 	pause_touch.index = 1
 	pause_touch.pressed = true
@@ -409,6 +470,16 @@ func _run() -> void:
 	pause_touch.pressed = true
 	game._input(pause_touch)
 	assert(not game.paused)
+	game.PAUSE_BUTTON.position = Vector2(350.0, 100.0)
+	pause_touch.position = game.PAUSE_BUTTON.get_center()
+	game._input(pause_touch)
+	assert(game.paused)
+	pause_touch.pressed = false
+	game._input(pause_touch)
+	pause_touch.pressed = true
+	game._input(pause_touch)
+	assert(not game.paused)
+	game.reset_control_positions(false)
 	var pause_key := InputEventKey.new()
 	pause_key.keycode = KEY_ESCAPE
 	pause_key.pressed = true

@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://ui/dialogue_overlay.tscn" id="5_dialogue"]
 [ext_resource type="PackedScene" path="res://ui/credits.tscn" id="6_credits"]
 
+[ext_resource type="Script" path="res://scripts/achievement_notifications.gd" id="7_achievements"]
+
 [node name="SpaceShooter" type="Node2D" unique_id=1850571674]
 script = ExtResource("1_game")
 
@@ -46,3 +48,10 @@ layer = 30
 
 [node name="CreditsScreen" parent="CreditsLayer" unique_id=1430780597 instance=ExtResource("6_credits")]
 visible = false
+
+[node name="AchievementLayer" type="CanvasLayer" parent="."]
+layer = 40
+
+[node name="Notifications" type="Node2D" parent="AchievementLayer"]
+script = ExtResource("7_achievements")
+game_path = NodePath("../..")
